@@ -19,7 +19,7 @@
 
 #define TILE_SIZE 16
 
-#define CAMERA_SCALE 3.0f
+#define CAMERA_SCALE 4.0f
 
 typedef enum {
     ek_texture_level,
@@ -34,7 +34,9 @@ static s_rgba_texture GenTextureRGBA(const t_s32 tex_index, s_mem_arena* const m
 }
 
 typedef enum {
-    ek_sprite_dirt_tile
+    ek_sprite_dirt_tile,
+    ek_sprite_ladder_tile,
+    ek_sprite_player
 } e_sprite;
 
 typedef struct {
@@ -45,7 +47,15 @@ typedef struct {
 static s_sprite_info g_sprite_infos[] = {
     [ek_sprite_dirt_tile] = {
         .tex = ek_texture_level,
-        .src_rect = {0, 0, 8, 8}
+        .src_rect = {0, 0, 16, 16}
+    },
+    [ek_sprite_ladder_tile] = {
+        .tex = ek_texture_level,
+        .src_rect = {16, 0, 16, 16}
+    },
+    [ek_sprite_player] = {
+        .tex = ek_texture_level,
+        .src_rect = {1, 33, 14, 14}
     }
 };
 
@@ -77,6 +87,11 @@ static bool g_tile_states_solid[] = {
     [ek_tile_state_shooter] = true,
     [ek_tile_state_entrance] = false,
     [ek_tile_state_exit] = false
+};
+
+static e_sprite g_tile_state_sprs[] = {
+    [ek_tile_state_dirt] = ek_sprite_dirt_tile,
+    [ek_tile_state_ladder] = ek_sprite_ladder_tile,
 };
 
 typedef struct {
@@ -165,7 +180,7 @@ void CleanGame(void* const dev_mem);
 
 bool WARN_UNUSED_RESULT GenLevel(s_level* const lvl, s_mem_arena* const temp_mem_arena);
 void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_context);
-void RenderLevel(s_level* const lvl, const s_rendering_context* const rc);
+void RenderLevel(s_level* const lvl, const s_rendering_context* const rc, const s_texture_group* const textures);
 bool RenderLevelUI(s_level* const lvl, const s_rendering_context* const rc, const s_font_group* const fonts, s_mem_arena* const temp_mem_arena);
 
 static inline void RenderSprite(const s_rendering_context* const rendering_context, const s_texture_group* const textures, const e_sprite spr, const s_v2 pos, const s_v2 origin, const s_v2 scale, const t_r32 rot, const u_v4 blend) {

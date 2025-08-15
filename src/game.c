@@ -39,9 +39,8 @@ bool RenderGame(const s_game_render_context* const zfw_context) {
 
     const s_rendering_context* const rc = &zfw_context->rendering_context;
 
-    Clear(rc, (u_v4){7.0f / 255.0f, 12.0f / 255.0f, 16.0f / 255.0f, 1.0f});
-
-    RenderLevel(&game->lvl, &zfw_context->rendering_context);
+    Clear(rc, BLACK);
+    RenderLevel(&game->lvl, rc, &game->textures);
 
     if (!RenderLevelUI(&game->lvl, &zfw_context->rendering_context, &game->fonts, zfw_context->temp_mem_arena)) {
         return false;

@@ -1,18 +1,17 @@
 #include "game.h"
 
-#define GRAVITY 0.4f
+#define GRAVITY 0.3f
 
 #define PLAYER_MOVE_SPD 2.0f
 #define PLAYER_MOVE_SPD_LERP 0.2f
 #define PLAYER_JUMP_HEIGHT 4.0f
 #define PLAYER_CLIMB_SPD 1.0f
-#define PLAYER_SIZE (s_v2_s32){TILE_SIZE - 2, TILE_SIZE - 2}
 #define PLAYER_ORIGIN (s_v2){0.5f, 0.5f}
 #define PLAYER_WHIP_OFFS 10.0f
 
 #define ARROW_SIZE (s_v2_s32){TILE_SIZE, TILE_SIZE / 2}
 #define ARROW_ORIGIN (s_v2){0.5f, 0.5f}
-#define ARROW_SPD 8.0f
+#define ARROW_SPD 4.0f
 
 #define SNAKE_SIZE (s_v2_s32){TILE_SIZE - 2, TILE_SIZE - 6}
 #define SNAKE_ORIGIN (s_v2){0.5f, 0.5f}
@@ -134,8 +133,13 @@ static void SpawnEnemy(s_level* const lvl, const s_v2 pos, const e_enemy_type en
     }
 }
 
+static s_v2_s32 PlayerSize() {
+    return RectS32Size(STATIC_ARRAY_ELEM(g_sprite_infos, ek_sprite_player)->src_rect);
+}
+
 static s_rect GenPlayerRect(const s_v2 player_pos) {
-    return (s_rect){player_pos.x - (PLAYER_SIZE.x * PLAYER_ORIGIN.x), player_pos.y - (PLAYER_SIZE.y * PLAYER_ORIGIN.y), PLAYER_SIZE.x, PLAYER_SIZE.y};
+    const s_v2_s32 size = RectS32Size(STATIC_ARRAY_ELEM(g_sprite_infos, ek_sprite_player)->src_rect);
+    return (s_rect){player_pos.x - (size.x * PLAYER_ORIGIN.x), player_pos.y - (size.y * PLAYER_ORIGIN.y), size.x, size.y};
 }
 
 static s_rect GenEnemyRect(const s_v2 enemy_pos, const e_enemy_type enemy_type) {
@@ -229,19 +233,19 @@ static void MoveToSolidTile(s_v2* const pos, const e_cardinal_dir dir, const s_v
 
     switch (dir) {
         case ek_cardinal_dir_right:
-            jump = (s_v2){1.0f, 0.0f};
+            jump = (s_v2){1.0f / CAMERA_SCALE, 0.0f};
             break;
 
         case ek_cardinal_dir_left:
-            jump = (s_v2){-1.0f, 0.0f};
+            jump = (s_v2){-1.0f / CAMERA_SCALE, 0.0f};
             break;
 
         case ek_cardinal_dir_down:
-            jump = (s_v2){0.0f, 1.0f};
+            jump = (s_v2){0.0f, 1.0f / CAMERA_SCALE};
             break;
 
         case ek_cardinal_dir_up:
-            jump = (s_v2){0.0f, -1.0f};
+            jump = (s_v2){0.0f, -1.0f / CAMERA_SCALE};
             break;
     }
 
@@ -249,6 +253,9 @@ static void MoveToSolidTile(s_v2* const pos, const e_cardinal_dir dir, const s_v
         pos->x += jump.x;
         pos->y += jump.y;
     }
+
+    pos->x = roundf(pos->x);
+    pos->y = roundf(pos->y);
 }
 
 static void ProcSolidTileCollisions(s_v2* const pos, s_v2* const vel, const s_v2 collider_size, const s_v2 collider_origin, const s_tilemap* const tm) {
@@ -439,7 +446,7 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
                 }
             }
 
-            ProcSolidTileCollisions(&player->pos, &player->vel, (s_v2){PLAYER_SIZE.x, PLAYER_SIZE.y}, PLAYER_ORIGIN, &lvl->tilemap);
+            ProcSolidTileCollisions(&player->pos, &player->vel, (s_v2){PlayerSize().x, PlayerSize().y}, PLAYER_ORIGIN, &lvl->tilemap);
 
             lvl->player.pos = V2Sum(lvl->player.pos, lvl->player.vel);
 
@@ -456,7 +463,7 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
             //
             if (IsKeyPressed(&zfw_context->input_context, ek_key_code_x)) {
                 const s_v2 hb_pos = {lvl->player.pos.x + (lvl->player.facing_right ? PLAYER_WHIP_OFFS : -PLAYER_WHIP_OFFS), lvl->player.pos.y};
-                SpawnHitbox(lvl, hb_pos, (s_v2){PLAYER_SIZE.x, PLAYER_SIZE.y}, (s_v2){0.5f, 0.5f}, 1, false);
+                SpawnHitbox(lvl, hb_pos, (s_v2){PlayerSize().x, PlayerSize().y}, (s_v2){0.5f, 0.5f}, 1, false);
             }
         }
 
@@ -608,6 +615,8 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
         }
     }
 
+    LOG("%f", lvl->player.pos.x);
+
     //
     // Player Death
     //
@@ -617,7 +626,7 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
     }
 }
 
-void RenderLevel(s_level* const lvl, const s_rendering_context* const rc) {
+void RenderLevel(s_level* const lvl, const s_rendering_context* const rc, const s_texture_group* const textures) {
     const s_v2_s32 view_size = {rc->window_size.x / CAMERA_SCALE, rc->window_size.y / CAMERA_SCALE};
 
     s_matrix_4x4 lvl_view_mat = IdentityMatrix4x4();
@@ -635,6 +644,13 @@ void RenderLevel(s_level* const lvl, const s_rendering_context* const rc) {
             const e_tile_state ts = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, ty, tx)->state;
 
             if (ts == ek_tile_state_empty) {
+                continue;
+            }
+
+            const s_v2 pos = {tx * TILE_SIZE, ty * TILE_SIZE};
+
+            if (ts == ek_tile_state_dirt || ts == ek_tile_state_ladder) {
+                RenderSprite(rc, textures, *STATIC_ARRAY_ELEM(g_tile_state_sprs, ts), pos, (s_v2){0}, (s_v2){1.0f, 1.0f}, 0.0f, WHITE);
                 continue;
             }
 
@@ -681,7 +697,7 @@ void RenderLevel(s_level* const lvl, const s_rendering_context* const rc) {
     //
     if (DoesPlayerExist(lvl)) {
         const s_rect rect = GenPlayerRect(lvl->player.pos);
-        RenderRectWithOutlineAndOpaqueFill(rc, rect, WHITE.rgb, BLACK, 1.0f);
+        RenderSprite(rc, textures, ek_sprite_player, lvl->player.pos, PLAYER_ORIGIN, (s_v2){1.0f, 1.0f}, 0.0f, WHITE);
     }
 
     //
