@@ -3,8 +3,6 @@
 #include <stdlib.h>
 
 int main() {
-    LOG("sahdjklashdk");
-
     const s_game_info game_info = {
         .window_init_size = {1280, 720},
         .window_title = ARRAY_FROM_STATIC("Spelunky in C"),
@@ -12,7 +10,10 @@ int main() {
         .init_func = InitGame,
         .tick_func = GameTick,
         .render_func = RenderGame,
-        .clean_func = CleanGame
+        .clean_func = CleanGame,
+
+        .dev_mem_size = sizeof(s_game),
+        .dev_mem_alignment = ALIGN_OF(s_game)
     };
 
     return RunGame(&game_info) ? EXIT_SUCCESS : EXIT_FAILURE;
