@@ -4,6 +4,7 @@
 #include <zfwc.h>
 
 #define NO_WORLD_GEN_DEBUG 1
+#define SHOW_DEBUG_HITBOXES 1
 
 #define DEATH_MSG "YOU DIED!"
 
@@ -75,11 +76,20 @@ typedef struct {
 } s_arrow;
 
 typedef struct {
+    s_rect rect;
+    int dmg;
+    bool enemy;
+} s_hitbox;
+
+typedef struct {
     s_tilemap tilemap;
     s_player player;
 
     s_arrow arrows[8];
     int arrow_cnt;
+
+    s_hitbox hitboxes[32];
+    int hitbox_cnt;
 
     int hp;
     int gold_cnt;

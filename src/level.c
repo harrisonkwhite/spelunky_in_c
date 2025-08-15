@@ -243,6 +243,23 @@ static s_rect GenCollider(const s_v2 pos, const s_v2 size, const s_v2 origin) {
     return (s_rect){pos.x - (size.x * origin.x), pos.y - (size.y * origin.y), size.x, size.y};
 }
 
+static void SpawnHitbox(s_level* const lvl, const s_v2 pos, const s_v2 size, const s_v2 origin, const int dmg, const bool enemy) {
+    assert(dmg > 0);
+
+    if (lvl->hitbox_cnt == STATIC_ARRAY_LEN(lvl->hitboxes)) {
+        LOG_WARNING("out of hitbox space");
+        return;
+    }
+
+    *STATIC_ARRAY_ELEM(lvl->hitboxes, lvl->hitbox_cnt) = (s_hitbox){
+        .rect = GenCollider(pos, size, origin),
+        .dmg = dmg,
+        .enemy = enemy
+    };
+
+    lvl->hitbox_cnt++;
+}
+
 static void MoveToSolidTile(s_v2* const pos, const e_cardinal_dir dir, const s_v2 collider_size, const s_v2 collider_origin, const s_tilemap* const tm) {
     s_v2 jump;
 
@@ -320,6 +337,8 @@ static inline bool DoesPlayerExist(const s_level* const lvl) {
 }
 
 void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_context) {
+    lvl->hitbox_cnt = 0;
+
     if (DoesPlayerExist(lvl)) {
         //
         // Player Movement
@@ -367,7 +386,7 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
             }
 
             if (on_ground) {
-                if (IsKeyPressed(&zfw_context->input_context, ek_key_code_space)) {
+                if (IsKeyPressed(&zfw_context->input_context, ek_key_code_up)) {
                     lvl->player.vel.y = -PLAYER_JUMP_HEIGHT;
                 }
             }
@@ -449,8 +468,25 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
                 i--;
             }
 
-            if (DoesPlayerExist(lvl) && DoRectsInters(collider, player_collider)) {
-                lvl->hp = 0; // TEMP
+            SpawnHitbox(lvl, arrow->pos, (s_v2){ARROW_SIZE.x, ARROW_SIZE.y}, ARROW_ORIGIN, 1, true);
+        }
+    }
+
+    //
+    // Processing Player collisions with hitboxes
+    //
+    {
+        const s_rect player_collider = GenPlayerRect(lvl->player.pos);
+
+        for (int i = 0; i < lvl->hitbox_cnt; i++) {
+            const s_hitbox* const hb = STATIC_ARRAY_ELEM(lvl->hitboxes, i);
+
+            if (!hb->enemy) {
+                continue;
+            }
+
+            if (DoRectsInters(player_collider, hb->rect)) {
+                lvl->hp = MAX(lvl->hp - hb->dmg, 0);
             }
         }
     }
@@ -539,6 +575,16 @@ void RenderLevel(s_level* const lvl, const s_rendering_context* const rc) {
         const s_rect rect = GenArrowRect(arrow->pos);
         RenderRectWithOutlineAndOpaqueFill(rc, rect, LIGHT_GRAY.rgb, BLACK, 1.0f);
     }
+
+    //
+    // Hitboxes (Debug)
+    //
+#if SHOW_DEBUG_HITBOXES
+    for (int i = 0; i < lvl->hitbox_cnt; i++) {
+        const s_hitbox* const hb = STATIC_ARRAY_ELEM(lvl->hitboxes, i);
+        RenderRect(rc, hb->rect, (u_v4){RED.rgb, 0.5f});
+    }
+#endif
 
     //
     // Resetting View Matrix
