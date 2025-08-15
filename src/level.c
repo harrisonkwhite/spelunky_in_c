@@ -13,7 +13,6 @@
 #define ARROW_ORIGIN (s_v2){0.5f, 0.5f}
 #define ARROW_SPD 4.0f
 
-#define SNAKE_SIZE (s_v2_s32){TILE_SIZE - 2, TILE_SIZE - 6}
 #define SNAKE_ORIGIN (s_v2){0.5f, 0.5f}
 #define SNAKE_MOVE_SPD 0.5f
 #define SNAKE_MOVE_SPD_LERP 0.1f
@@ -142,10 +141,17 @@ static s_rect GenPlayerRect(const s_v2 player_pos) {
     return (s_rect){player_pos.x - (size.x * PLAYER_ORIGIN.x), player_pos.y - (size.y * PLAYER_ORIGIN.y), size.x, size.y};
 }
 
+static s_v2_s32 SnakeSize() {
+    return RectS32Size(STATIC_ARRAY_ELEM(g_sprite_infos, ek_sprite_snake_enemy)->src_rect);
+}
+
 static s_rect GenEnemyRect(const s_v2 enemy_pos, const e_enemy_type enemy_type) {
     switch (enemy_type) {
         case ek_enemy_type_snake:
-            return (s_rect){enemy_pos.x - (SNAKE_SIZE.x * SNAKE_ORIGIN.x), enemy_pos.y - (SNAKE_SIZE.y * SNAKE_ORIGIN.y), SNAKE_SIZE.x, SNAKE_SIZE.y};
+            {
+                const s_v2_s32 size = RectS32Size(STATIC_ARRAY_ELEM(g_sprite_infos, ek_sprite_snake_enemy)->src_rect);
+                return (s_rect){enemy_pos.x - (size.x * SNAKE_ORIGIN.x), enemy_pos.y - (size.y * SNAKE_ORIGIN.y), size.x, size.y};
+            }
     }
 }
 
@@ -282,7 +288,7 @@ static void ProcSolidTileCollisions(s_v2* const pos, s_v2* const vel, const s_v2
     }
 }
 
-bool GenLevel(s_level* const lvl, s_mem_arena* const temp_mem_arena) {
+bool GenLevel(s_level* const lvl, const s_v2_s32 window_size, s_mem_arena* const temp_mem_arena) {
     assert(IS_ZERO(*lvl));
 
     s_tilemap* const tm = &lvl->tilemap;
@@ -366,6 +372,13 @@ bool GenLevel(s_level* const lvl, s_mem_arena* const temp_mem_arena) {
         STATIC_ARRAY_2D_ELEM(tm->tiles, 0, tx)->state = ek_tile_state_dirt;
         STATIC_ARRAY_2D_ELEM(tm->tiles, TILEMAP_HEIGHT - 1, tx)->state = ek_tile_state_dirt;
     }
+
+    //
+    lvl->view_pos = lvl->player.pos;
+
+    const s_v2_s32 view_size = {window_size.x / CAMERA_SCALE, window_size.y / CAMERA_SCALE};
+    lvl->view_pos.x = CLAMP(lvl->view_pos.x, view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
+    lvl->view_pos.y = CLAMP(lvl->view_pos.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
 
     lvl->hp = HP_LIMIT;
 
@@ -510,8 +523,10 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
         //
         // End Level
         //
-        if (CheckTileCollisionWithState(NULL, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_exit)) {
-            lvl->completed = true;
+        if (IsKeyPressed(&zfw_context->input_context, ek_key_code_x)) {
+            if (CheckTileCollisionWithState(NULL, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_exit)) {
+                lvl->completed = true;
+            }
         }
     }
 
@@ -563,11 +578,11 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
 
                     enemy->snake_type.vel.y += GRAVITY;
 
-                    ProcSolidTileCollisions(&enemy->pos, &enemy->snake_type.vel, (s_v2){SNAKE_SIZE.x, SNAKE_SIZE.y}, SNAKE_ORIGIN, &lvl->tilemap);
+                    ProcSolidTileCollisions(&enemy->pos, &enemy->snake_type.vel, (s_v2){SnakeSize().x, SnakeSize().y}, SNAKE_ORIGIN, &lvl->tilemap);
 
                     enemy->pos = V2Sum(enemy->pos, enemy->snake_type.vel);
 
-                    SpawnHitbox(lvl, enemy->pos, (s_v2){SNAKE_SIZE.x, SNAKE_SIZE.y}, SNAKE_ORIGIN, 1, true);
+                    SpawnHitbox(lvl, enemy->pos, (s_v2){SnakeSize().x, SnakeSize().y}, SNAKE_ORIGIN, 1, true);
                 }
 
                 break;
@@ -624,6 +639,22 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
 
     if (lvl->hp == 0) {
     }
+
+    //
+    // View
+    //
+    s_v2 view_dest = {
+        lvl->player.pos.x,
+        lvl->player.pos.y
+    };
+
+    const s_v2_s32 view_size = {zfw_context->window_state.size.x / CAMERA_SCALE, zfw_context->window_state.size.y / CAMERA_SCALE};
+    view_dest.x = CLAMP(view_dest.x, view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
+    view_dest.y = CLAMP(view_dest.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
+
+    const float view_lerp_factor = 0.2f;
+    lvl->view_pos.x = Lerp(lvl->view_pos.x, view_dest.x, view_lerp_factor);
+    lvl->view_pos.y = Lerp(lvl->view_pos.y, view_dest.y, view_lerp_factor);
 }
 
 void RenderLevel(s_level* const lvl, const s_rendering_context* const rc, const s_texture_group* const textures) {
@@ -632,15 +663,7 @@ void RenderLevel(s_level* const lvl, const s_rendering_context* const rc, const 
     s_matrix_4x4 lvl_view_mat = IdentityMatrix4x4();
 #if NO_WORLD_GEN_DEBUG
 
-    s_v2 view_pos = {
-        lvl->player.pos.x,
-        lvl->player.pos.y
-    };
-
-    view_pos.x = CLAMP(view_pos.x, view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
-    view_pos.y = CLAMP(view_pos.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
-
-    TranslateMatrix4x4(&lvl_view_mat, (s_v2){(-view_pos.x + view_size.x * 0.5f) * CAMERA_SCALE, (-view_pos.y + view_size.y * 0.5f) * CAMERA_SCALE});
+    TranslateMatrix4x4(&lvl_view_mat, (s_v2){(-lvl->view_pos.x + view_size.x * 0.5f) * CAMERA_SCALE, (-lvl->view_pos.y + view_size.y * 0.5f) * CAMERA_SCALE});
     ScaleMatrix4x4(&lvl_view_mat, CAMERA_SCALE);
 #endif
     SetViewMatrix(rc, &lvl_view_mat);
@@ -680,16 +703,7 @@ void RenderLevel(s_level* const lvl, const s_rendering_context* const rc, const 
             continue;
         }
 
-        u_v3 col;
-
-        switch (enemy->type) {
-            case ek_enemy_type_snake:
-                col = GREEN.rgb;
-                break;
-        }
-
-        const s_rect rect = GenEnemyRect(enemy->pos, enemy->type);
-        RenderRectWithOutlineAndOpaqueFill(rc, rect, col, BLACK, 1.0f);
+        RenderSprite(rc, textures, ek_sprite_snake_enemy, enemy->pos, SNAKE_ORIGIN, (s_v2){1.0f, 1.0f}, 0.0f, WHITE);
     }
 
     //
@@ -729,7 +743,7 @@ bool RenderLevelUI(s_level* const lvl, const s_rendering_context* const rc, cons
 
     const s_v2 gold_str_pos = {rc->window_size.x * 0.025f, rc->window_size.y * 0.05f};
 
-    if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(gold_str), fonts, ek_font_roboto_96, gold_str_pos, ALIGNMENT_TOP_LEFT, WHITE, temp_mem_arena)) {
+    if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(gold_str), fonts, ek_font_roboto_64, gold_str_pos, ALIGNMENT_TOP_LEFT, WHITE, temp_mem_arena)) {
         return false;
     }
 
@@ -737,7 +751,7 @@ bool RenderLevelUI(s_level* const lvl, const s_rendering_context* const rc, cons
     // Death
     //
     if (lvl->hp == 0) {
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("You died!"), fonts, ek_font_roboto_128, (s_v2){rc->window_size.x / 2.0f, rc->window_size.y / 2.0f}, ALIGNMENT_CENTER, WHITE, temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("You died!"), fonts, ek_font_roboto_96, (s_v2){rc->window_size.x / 2.0f, rc->window_size.y / 2.0f}, ALIGNMENT_CENTER, WHITE, temp_mem_arena)) {
             return false;
         }
     }
@@ -746,7 +760,7 @@ bool RenderLevelUI(s_level* const lvl, const s_rendering_context* const rc, cons
     // Level Completion
     //
     if (lvl->completed) {
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("LEVEL COMPLETED"), fonts, ek_font_roboto_128, (s_v2){rc->window_size.x / 2.0f, rc->window_size.y / 2.0f}, ALIGNMENT_CENTER, WHITE, temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("LEVEL COMPLETED"), fonts, ek_font_roboto_96, (s_v2){rc->window_size.x / 2.0f, rc->window_size.y / 2.0f}, ALIGNMENT_CENTER, WHITE, temp_mem_arena)) {
             return false;
         }
     }

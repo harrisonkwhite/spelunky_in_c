@@ -4,7 +4,7 @@
 #include <zfwc.h>
 
 #define NO_WORLD_GEN_DEBUG 1
-#define SHOW_DEBUG_HITBOXES 1
+#define SHOW_DEBUG_HITBOXES 0
 
 #define HP_LIMIT 3
 
@@ -37,7 +37,11 @@ typedef enum {
     ek_sprite_dirt_tile,
     ek_sprite_ladder_tile,
     ek_sprite_gold_tile,
-    ek_sprite_player
+    ek_sprite_shooter_tile,
+    ek_sprite_entrance_tile,
+    ek_sprite_exit_tile,
+    ek_sprite_player,
+    ek_sprite_snake_enemy
 } e_sprite;
 
 typedef struct {
@@ -58,20 +62,36 @@ static s_sprite_info g_sprite_infos[] = {
         .tex = ek_texture_level,
         .src_rect = {32, 0, 16, 16}
     },
+    [ek_sprite_shooter_tile] = {
+        .tex = ek_texture_level,
+        .src_rect = {48, 0, 16, 16}
+    },
+    [ek_sprite_entrance_tile] = {
+        .tex = ek_texture_level,
+        .src_rect = {0, 16, 16, 16}
+    },
+    [ek_sprite_exit_tile] = {
+        .tex = ek_texture_level,
+        .src_rect = {16, 16, 16, 16}
+    },
     [ek_sprite_player] = {
         .tex = ek_texture_level,
         .src_rect = {1, 33, 14, 14}
+    },
+    [ek_sprite_snake_enemy] = {
+        .tex = ek_texture_level,
+        .src_rect = {17, 33, 14, 14}
     }
 };
 
 typedef enum {
-    ek_font_roboto_96,
-    ek_font_roboto_128
+    ek_font_roboto_64,
+    ek_font_roboto_96
 } e_font;
 
 static const s_char_array_view g_font_file_paths[] = {
-    [ek_font_roboto_96] = ARRAY_FROM_STATIC("assets/fonts/roboto_96"),
-    [ek_font_roboto_128] = ARRAY_FROM_STATIC("assets/fonts/roboto_128")
+    [ek_font_roboto_64] = ARRAY_FROM_STATIC("assets/fonts/roboto_64"),
+    [ek_font_roboto_96] = ARRAY_FROM_STATIC("assets/fonts/roboto_96")
 };
 
 typedef enum {
@@ -98,9 +118,9 @@ static e_sprite g_tile_state_sprs[] = {
     [ek_tile_state_dirt] = ek_sprite_dirt_tile,
     [ek_tile_state_ladder] = ek_sprite_ladder_tile,
     [ek_tile_state_gold] = ek_sprite_gold_tile,
-    [ek_tile_state_shooter] = ek_sprite_dirt_tile,
-    [ek_tile_state_entrance] = ek_sprite_dirt_tile,
-    [ek_tile_state_exit] = ek_sprite_dirt_tile
+    [ek_tile_state_shooter] = ek_sprite_shooter_tile,
+    [ek_tile_state_entrance] = ek_sprite_entrance_tile,
+    [ek_tile_state_exit] = ek_sprite_exit_tile
 };
 
 typedef struct {
@@ -173,6 +193,8 @@ typedef struct {
     int hp;
     int gold_cnt;
 
+    s_v2 view_pos;
+
     bool completed;
 } s_level;
 
@@ -187,7 +209,7 @@ e_game_tick_result GameTick(const s_game_tick_context* const zfw_context);
 bool RenderGame(const s_game_render_context* const zfw_context);
 void CleanGame(void* const dev_mem);
 
-bool WARN_UNUSED_RESULT GenLevel(s_level* const lvl, s_mem_arena* const temp_mem_arena);
+bool WARN_UNUSED_RESULT GenLevel(s_level* const lvl, const s_v2_s32 window_size, s_mem_arena* const temp_mem_arena);
 void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_context);
 void RenderLevel(s_level* const lvl, const s_rendering_context* const rc, const s_texture_group* const textures);
 bool RenderLevelUI(s_level* const lvl, const s_rendering_context* const rc, const s_font_group* const fonts, s_mem_arena* const temp_mem_arena);
