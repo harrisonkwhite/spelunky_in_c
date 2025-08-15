@@ -4,5 +4,11 @@
         "output_file_path": "assets/fonts/medodica_96",
         "file_path": "assets_raw/fonts/medodica.otf",
         "height": 96
+    },
+    {
+        "type": "font",
+        "output_file_path": "assets/fonts/medodica_128",
+        "file_path": "assets_raw/fonts/medodica.otf",
+        "height": 128
     }
 ]

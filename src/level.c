@@ -9,6 +9,10 @@
 #define PLAYER_SIZE (s_v2_s32){TILE_SIZE, TILE_SIZE}
 #define PLAYER_ORIGIN (s_v2){0.5f, 0.5f}
 
+#define ARROW_SIZE (s_v2_s32){TILE_SIZE, TILE_SIZE / 2}
+#define ARROW_ORIGIN (s_v2){0.5f, 0.5f}
+#define ARROW_SPD 8.0f
+
 typedef enum {
     ek_tilemap_room_type_extra,
     ek_tilemap_room_type_left_right_exits,
@@ -123,11 +127,13 @@ static bool WARN_UNUSED_RESULT GenTilemap(s_tilemap* const tm, s_mem_arena* cons
                     const int ty = (ry * TILEMAP_ROOM_HEIGHT) + tyo;
 
                     if (tex_px_r == 0 && tex_px_g == 0 && tex_px_b == 0 && tex_px_a == 255) {
-                        *STATIC_ARRAY_2D_ELEM(tm->states, ty, tx) = ek_tile_state_dirt;
+                        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_dirt;
                     } else if (tex_px_r == 255 && tex_px_g == 0 && tex_px_b == 0 && tex_px_a == 255) {
-                        *STATIC_ARRAY_2D_ELEM(tm->states, ty, tx) = ek_tile_state_ladder;
+                        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_ladder;
                     } else if (tex_px_r == 255 && tex_px_g == 255 && tex_px_b == 0 && tex_px_a == 255) {
-                        *STATIC_ARRAY_2D_ELEM(tm->states, ty, tx) = ek_tile_state_gold;
+                        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_gold;
+                    } else if (tex_px_r == 0 && tex_px_g == 255 && tex_px_b == 0 && tex_px_a == 255) {
+                        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_shooter;
                     } else {
                         assert(tex_px_r == 0 && tex_px_g == 0 && tex_px_b == 0 && tex_px_a == 0 && "forgettinga tile!");
                     }
@@ -138,13 +144,13 @@ static bool WARN_UNUSED_RESULT GenTilemap(s_tilemap* const tm, s_mem_arena* cons
 
     // Add boundaries.
     for (int ty = 0; ty < TILEMAP_HEIGHT; ty++) {
-        *STATIC_ARRAY_2D_ELEM(tm->states, ty, 0) = ek_tile_state_dirt;
-        *STATIC_ARRAY_2D_ELEM(tm->states, ty, TILEMAP_WIDTH - 1) = ek_tile_state_dirt;
+        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, 0)->state = ek_tile_state_dirt;
+        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, TILEMAP_WIDTH - 1)->state = ek_tile_state_dirt;
     }
 
     for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
-        *STATIC_ARRAY_2D_ELEM(tm->states, 0, tx) = ek_tile_state_dirt;
-        *STATIC_ARRAY_2D_ELEM(tm->states, TILEMAP_HEIGHT - 1, tx) = ek_tile_state_dirt;
+        STATIC_ARRAY_2D_ELEM(tm->tiles, 0, tx)->state = ek_tile_state_dirt;
+        STATIC_ARRAY_2D_ELEM(tm->tiles, TILEMAP_HEIGHT - 1, tx)->state = ek_tile_state_dirt;
     }
 
     return true;
@@ -154,16 +160,24 @@ static s_rect GenPlayerRect(const s_v2 player_pos) {
     return (s_rect){player_pos.x - (PLAYER_SIZE.x * PLAYER_ORIGIN.x), player_pos.y - (PLAYER_SIZE.y * PLAYER_ORIGIN.y), PLAYER_SIZE.x, PLAYER_SIZE.y};
 }
 
+static s_rect GenArrowRect(const s_v2 arrow_pos) {
+    return (s_rect){arrow_pos.x - (ARROW_SIZE.x * ARROW_ORIGIN.x), arrow_pos.y - (ARROW_SIZE.y * ARROW_ORIGIN.y), ARROW_SIZE.x, ARROW_SIZE.y};
+}
+
 static s_rect GenTileRect(const int tx, const int ty) {
     return (s_rect){tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE};
 }
 
-static bool CheckSolidTileCollision(const s_rect rect, const s_tilemap* const tm) {
+static bool CheckSolidTileCollision(const s_rect rect, const s_tilemap* const tm, const bool ignore_shooters) {
     for (int ty = 0; ty < TILEMAP_HEIGHT; ty++) {
         for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
-            const e_tile_state ts = *STATIC_ARRAY_2D_ELEM(tm->states, ty, tx);
+            const e_tile_state ts = STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state;
 
             if (!(*STATIC_ARRAY_ELEM(g_tile_states_solid, ts))) {
+                continue;
+            }
+
+            if (ignore_shooters && ts == ek_tile_state_shooter) {
                 continue;
             }
 
@@ -183,7 +197,7 @@ static bool CheckTileCollisionWithState(s_v2_s32* const tp, const s_rect rect, c
 
     for (int ty = 0; ty < TILEMAP_HEIGHT; ty++) {
         for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
-            const e_tile_state ts = *STATIC_ARRAY_2D_ELEM(tm->states, ty, tx);
+            const e_tile_state ts = STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state;
 
             if (ts != state) {
                 continue;
@@ -229,7 +243,7 @@ static void MoveToSolidTile(s_v2* const pos, const e_cardinal_dir dir, const s_v
             break;
     }
 
-    while (!CheckSolidTileCollision(GenCollider((s_v2){pos->x + jump.x, pos->y + jump.y}, collider_size, collider_origin), tm)) {
+    while (!CheckSolidTileCollision(GenCollider((s_v2){pos->x + jump.x, pos->y + jump.y}, collider_size, collider_origin), tm, false)) {
         pos->x += jump.x;
         pos->y += jump.y;
     }
@@ -238,21 +252,21 @@ static void MoveToSolidTile(s_v2* const pos, const e_cardinal_dir dir, const s_v
 static void ProcSolidTileCollisions(s_v2* const pos, s_v2* const vel, const s_v2 collider_size, const s_v2 collider_origin, const s_tilemap* const tm) {
     const s_rect rect_hor = GenCollider((s_v2){pos->x + vel->x, pos->y}, collider_size, collider_origin);
 
-    if (CheckSolidTileCollision(rect_hor, tm)) {
+    if (CheckSolidTileCollision(rect_hor, tm, false)) {
         MoveToSolidTile(pos, vel->x >= 0.0f ? ek_cardinal_dir_right : ek_cardinal_dir_left, collider_size, collider_origin, tm);
         vel->x = 0.0f;
     }
 
     const s_rect rect_vert = GenCollider((s_v2){pos->x, pos->y + vel->y}, collider_size, collider_origin);
 
-    if (CheckSolidTileCollision(rect_vert, tm)) {
+    if (CheckSolidTileCollision(rect_vert, tm, false)) {
         MoveToSolidTile(pos, vel->y >= 0.0f ? ek_cardinal_dir_down : ek_cardinal_dir_up, collider_size, collider_origin, tm);
         vel->y = 0.0f;
     }
 
     const s_rect rect_diag = GenCollider((s_v2){pos->x + vel->x, pos->y + vel->y}, collider_size, collider_origin);
 
-    if (CheckSolidTileCollision(rect_diag, tm)) {
+    if (CheckSolidTileCollision(rect_diag, tm, false)) {
         vel->x = 0.0f;
     }
 }
@@ -269,72 +283,157 @@ bool GenLevel(s_level* const lvl, s_mem_arena* const temp_mem_arena) {
         0.5f * TILEMAP_ROOM_HEIGHT * TILE_SIZE
     };
 
+    lvl->hp = HP_LIMIT;
+
     return true;
 }
 
+static void SpawnArrow(s_level* const lvl, const s_v2 pos, const bool right) {
+    if (lvl->arrow_cnt < STATIC_ARRAY_LEN(lvl->arrows)) {
+        s_arrow* const arrow = STATIC_ARRAY_ELEM(lvl->arrows, lvl->arrow_cnt);
+        arrow->pos = pos;
+        arrow->right = false;
+        lvl->arrow_cnt++;
+    } else {
+        assert(false);
+    }
+}
+
 void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_context) {
+    if (lvl->hp > 0) {
+        //
+        // Player Movement
+        //
+        {
+            s_player* const player = &lvl->player;
+
+            const int move_axis = IsKeyDown(&zfw_context->input_context, ek_key_code_right) - IsKeyDown(&zfw_context->input_context, ek_key_code_left);
+
+            const float vel_x_dest = PLAYER_MOVE_SPD * move_axis;
+            player->vel.x = Lerp(player->vel.x, vel_x_dest, PLAYER_MOVE_SPD_LERP);
+
+            /*if (CheckTileCollision(RectTranslated(GenPlayerRect(lvl->player.pos), (s_v2){1.0f, 0.0f}), &lvl->tilemap)) {
+                stuck = true;
+            } else {
+                stuck = false;
+            }*/
+
+            const bool on_ground = CheckSolidTileCollision(RectTranslated(GenPlayerRect(lvl->player.pos), (s_v2){0.0f, 1.0f}), &lvl->tilemap, false);
+            const bool touching_ladder = CheckTileCollisionWithState(NULL, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_ladder);
+
+            if (on_ground) {
+                lvl->player.cant_climb = false;
+            }
+
+            if (touching_ladder) {
+                if (!lvl->player.cant_climb && IsKeyDown(&zfw_context->input_context, ek_key_code_up)) {
+                    lvl->player.climbing = true;
+                }
+            } else {
+                if (lvl->player.climbing) {
+                    lvl->player.climbing = false;
+                    lvl->player.cant_climb = true;
+                }
+            }
+
+            if (lvl->player.climbing) {
+                if (IsKeyDown(&zfw_context->input_context, ek_key_code_up)) {
+                    lvl->player.vel.y = -PLAYER_CLIMB_SPD;
+                } else {
+                    lvl->player.vel.y = 0.0f;
+                }
+            } else {
+                lvl->player.vel.y += GRAVITY;
+            }
+
+            if (on_ground) {
+                if (IsKeyPressed(&zfw_context->input_context, ek_key_code_space)) {
+                    lvl->player.vel.y = -PLAYER_JUMP_HEIGHT;
+                }
+            }
+
+            ProcSolidTileCollisions(&player->pos, &player->vel, (s_v2){PLAYER_SIZE.x, PLAYER_SIZE.y}, PLAYER_ORIGIN, &lvl->tilemap);
+
+            lvl->player.pos = V2Sum(lvl->player.pos, lvl->player.vel);
+
+            // Check for gold!
+            s_v2_s32 gold_tile_pos = {0};
+
+            if (CheckTileCollisionWithState(&gold_tile_pos, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_gold)) {
+                STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, gold_tile_pos.y, gold_tile_pos.x)->state = ek_tile_state_empty;
+                lvl->gold_cnt++;
+            }
+        }
+
+        //
+        // Shooter Tiles
+        //
+        {
+            const int player_tile_x = lvl->player.pos.x / TILE_SIZE;
+            const int player_tile_y = lvl->player.pos.y / TILE_SIZE;
+
+            // Check to player right.
+            for (int tx = player_tile_x + 1; ; tx++) {
+                s_tile* const tile = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, player_tile_y, tx);
+
+                if (tile->state == ek_tile_state_shooter && !tile->shooter_shot && !tile->shooter_facing_right) {
+                    SpawnArrow(lvl, (s_v2){(tx + 0.5f) * TILE_SIZE, (player_tile_y + 0.5f) * TILE_SIZE}, false);
+                    tile->shooter_shot = true;
+                    break;
+                }
+
+                if (*STATIC_ARRAY_ELEM(g_tile_states_solid, tile->state)) {
+                    break;
+                }
+            }
+
+            // Check to player left.
+            for (int tx = player_tile_x + 1; ; tx++) {
+                s_tile* const tile = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, player_tile_y, tx);
+
+                if (tile->state == ek_tile_state_shooter && !tile->shooter_shot && tile->shooter_facing_right) {
+                    SpawnArrow(lvl, (s_v2){(tx + 0.5f) * TILE_SIZE, (player_tile_y + 0.5f) * TILE_SIZE}, true);
+                    tile->shooter_shot = true;
+                    break;
+                }
+
+                if (*STATIC_ARRAY_ELEM(g_tile_states_solid, tile->state)) {
+                    break;
+                }
+            }
+        }
+    }
+
     //
-    // Player Movement
+    // Arrows
     //
     {
-        s_player* const player = &lvl->player;
+        const s_rect player_collider = GenPlayerRect(lvl->player.pos);
 
-        const int move_axis = IsKeyDown(&zfw_context->input_context, ek_key_code_right) - IsKeyDown(&zfw_context->input_context, ek_key_code_left);
+        for (int i = 0; i < lvl->arrow_cnt; i++) {
+            s_arrow* const arrow = STATIC_ARRAY_ELEM(lvl->arrows, i);
+            arrow->pos.x += ARROW_SPD * (arrow->right ? 1.0f : -1.0f);
 
-        const float vel_x_dest = PLAYER_MOVE_SPD * move_axis;
-        player->vel.x = Lerp(player->vel.x, vel_x_dest, PLAYER_MOVE_SPD_LERP);
+            const s_rect collider = GenArrowRect(arrow->pos);
 
-        /*if (CheckTileCollision(RectTranslated(GenPlayerRect(lvl->player.pos), (s_v2){1.0f, 0.0f}), &lvl->tilemap)) {
-            stuck = true;
-        } else {
-            stuck = false;
-        }*/
-
-        const bool on_ground = CheckSolidTileCollision(RectTranslated(GenPlayerRect(lvl->player.pos), (s_v2){0.0f, 1.0f}), &lvl->tilemap);
-        const bool touching_ladder = CheckTileCollisionWithState(NULL, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_ladder);
-
-        if (on_ground) {
-            lvl->player.cant_climb = false;
-        }
-
-        if (touching_ladder) {
-            if (!lvl->player.cant_climb && IsKeyDown(&zfw_context->input_context, ek_key_code_up)) {
-                lvl->player.climbing = true;
+            if (CheckSolidTileCollision(collider, &lvl->tilemap, true)) {
+                *arrow = *STATIC_ARRAY_ELEM(lvl->arrows, lvl->arrow_cnt - 1);
+                lvl->arrow_cnt--;
+                i--;
             }
-        } else {
-            if (lvl->player.climbing) {
-                lvl->player.climbing = false;
-                lvl->player.cant_climb = true;
+
+            if (lvl->hp > 0 && DoRectsInters(collider, player_collider)) {
+                lvl->hp = 0; // TEMP
             }
         }
+    }
 
-        if (lvl->player.climbing) {
-            if (IsKeyDown(&zfw_context->input_context, ek_key_code_up)) {
-                lvl->player.vel.y = -PLAYER_CLIMB_SPD;
-            } else {
-                lvl->player.vel.y = 0.0f;
-            }
-        } else {
-            lvl->player.vel.y += GRAVITY;
-        }
+    //
+    // Player Death
+    //
+    assert(lvl->hp >= 0);
 
-        if (on_ground) {
-            if (IsKeyPressed(&zfw_context->input_context, ek_key_code_space)) {
-                lvl->player.vel.y = -PLAYER_JUMP_HEIGHT;
-            }
-        }
-
-        ProcSolidTileCollisions(&player->pos, &player->vel, (s_v2){PLAYER_SIZE.x, PLAYER_SIZE.y}, PLAYER_ORIGIN, &lvl->tilemap);
-
-        lvl->player.pos = V2Sum(lvl->player.pos, lvl->player.vel);
-
-        // Check for gold!
-        s_v2_s32 gold_tile_pos = {0};
-
-        if (CheckTileCollisionWithState(&gold_tile_pos, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_gold)) {
-            *STATIC_ARRAY_2D_ELEM(lvl->tilemap.states, gold_tile_pos.y, gold_tile_pos.x) = ek_tile_state_empty;
-            lvl->gold_cnt++;
-        }
+    if (lvl->hp == 0) {
     }
 }
 
@@ -351,7 +450,7 @@ void RenderLevel(s_level* const lvl, const s_rendering_context* const rc) {
     //
     for (int ty = 0; ty < TILEMAP_HEIGHT; ty++) {
         for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
-            const e_tile_state ts = *STATIC_ARRAY_2D_ELEM(lvl->tilemap.states, ty, tx);
+            const e_tile_state ts = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, ty, tx)->state;
 
             if (ts == ek_tile_state_empty) {
                 continue;
@@ -373,6 +472,14 @@ void RenderLevel(s_level* const lvl, const s_rendering_context* const rc) {
                 case ek_tile_state_gold:
                     col = YELLOW.rgb;
                     break;
+
+                case ek_tile_state_shooter:
+                    col = GRAY.rgb;
+                    break;
+
+                default:
+                    assert(false && "forgetting tile type");
+                    break;
             }
 
             RenderRectWithOutlineAndOpaqueFill(rc, rect, col, BLACK, 1.0f);
@@ -382,9 +489,18 @@ void RenderLevel(s_level* const lvl, const s_rendering_context* const rc) {
     //
     // Player
     //
-    {
+    if (lvl->hp > 0) {
         const s_rect rect = GenPlayerRect(lvl->player.pos);
         RenderRectWithOutlineAndOpaqueFill(rc, rect, WHITE.rgb, BLACK, 1.0f);
+    }
+
+    //
+    // Arrows
+    //
+    for (int i = 0; i < lvl->arrow_cnt; i++) {
+        const s_arrow* const arrow = STATIC_ARRAY_ELEM(lvl->arrows, i);
+        const s_rect rect = GenArrowRect(arrow->pos);
+        RenderRectWithOutlineAndOpaqueFill(rc, rect, LIGHT_GRAY.rgb, BLACK, 1.0f);
     }
 
     //
@@ -397,11 +513,23 @@ void RenderLevel(s_level* const lvl, const s_rendering_context* const rc) {
 }
 
 bool RenderLevelUI(s_level* const lvl, const s_rendering_context* const rc, const s_font_group* const fonts, s_mem_arena* const temp_mem_arena) {
+    //
+    // Gold
+    //
     char gold_str[8];
     snprintf(gold_str, sizeof(gold_str), "GOLD: %d", lvl->gold_cnt);
 
     if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(gold_str), fonts, ek_font_medodica_96, (s_v2){0}, ALIGNMENT_TOP_LEFT, WHITE, temp_mem_arena)) {
         return false;
+    }
+
+    //
+    // Death
+    //
+    if (lvl->hp == 0) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(DEATH_MSG), fonts, ek_font_medodica_128, (s_v2){rc->window_size.x / 2.0f, rc->window_size.y / 2.0f}, ALIGNMENT_CENTER, WHITE, temp_mem_arena)) {
+            return false;
+        }
     }
 
     return true;

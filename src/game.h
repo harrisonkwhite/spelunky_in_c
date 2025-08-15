@@ -3,6 +3,10 @@
 
 #include <zfwc.h>
 
+#define DEATH_MSG "YOU DIED!"
+
+#define HP_LIMIT 3
+
 #define TILEMAP_ROOM_WIDTH 12
 #define TILEMAP_ROOM_HEIGHT 8
 #define TILEMAP_ROOMS_HOR 4
@@ -15,30 +19,41 @@
 #define CAMERA_SCALE 3.0f
 
 typedef enum {
-    ek_font_medodica_96
+    ek_font_medodica_96,
+    ek_font_medodica_128
 } e_font;
 
 static const s_char_array_view g_font_file_paths[] = {
-    [ek_font_medodica_96] = ARRAY_FROM_STATIC("assets/fonts/medodica_96")
+    [ek_font_medodica_96] = ARRAY_FROM_STATIC("assets/fonts/medodica_96"),
+    [ek_font_medodica_128] = ARRAY_FROM_STATIC("assets/fonts/medodica_128")
 };
 
 typedef enum {
     ek_tile_state_empty,
     ek_tile_state_dirt,
     ek_tile_state_ladder,
-    ek_tile_state_gold
+    ek_tile_state_gold,
+    ek_tile_state_shooter
 } e_tile_state;
 
 static bool g_tile_states_solid[] = {
     [ek_tile_state_empty] = false,
     [ek_tile_state_dirt] = true,
     [ek_tile_state_ladder] = false,
-    [ek_tile_state_gold] = false
+    [ek_tile_state_gold] = false,
+    [ek_tile_state_shooter] = true
 };
 
 typedef struct {
+    e_tile_state state;
+
+    bool shooter_shot;
+    bool shooter_facing_right;
+} s_tile;
+
+typedef struct {
     int starting_room_x;
-    e_tile_state states[TILEMAP_HEIGHT][TILEMAP_WIDTH];
+    s_tile tiles[TILEMAP_HEIGHT][TILEMAP_WIDTH];
 } s_tilemap;
 
 typedef struct {
@@ -49,8 +64,18 @@ typedef struct {
 } s_player;
 
 typedef struct {
+    s_v2 pos;
+    bool right;
+} s_arrow;
+
+typedef struct {
     s_tilemap tilemap;
     s_player player;
+
+    s_arrow arrows[8];
+    int arrow_cnt;
+
+    int hp;
     int gold_cnt;
 } s_level;
 
