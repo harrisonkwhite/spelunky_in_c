@@ -7,6 +7,7 @@
 #define PLAYER_JUMP_HEIGHT 4.0f
 #define PLAYER_CLIMB_SPD 1.0f
 #define PLAYER_SIZE (s_v2_s32){TILE_SIZE, TILE_SIZE}
+#define PLAYER_ORIGIN (s_v2){0.5f, 0.5f}
 
 typedef enum {
     ek_tilemap_room_type_extra,
@@ -150,7 +151,7 @@ static bool WARN_UNUSED_RESULT GenTilemap(s_tilemap* const tm, s_mem_arena* cons
 }
 
 static s_rect GenPlayerRect(const s_v2 player_pos) {
-    return (s_rect){player_pos.x - (PLAYER_SIZE.x / 2.0f), player_pos.y - (PLAYER_SIZE.y / 2.0f), PLAYER_SIZE.x, PLAYER_SIZE.y};
+    return (s_rect){player_pos.x - (PLAYER_SIZE.x * PLAYER_ORIGIN.x), player_pos.y - (PLAYER_SIZE.y * PLAYER_ORIGIN.y), PLAYER_SIZE.x, PLAYER_SIZE.y};
 }
 
 static s_rect GenTileRect(const int tx, const int ty) {
@@ -203,20 +204,73 @@ static bool CheckTileCollisionWithState(s_v2_s32* const tp, const s_rect rect, c
     return false;
 }
 
-static void ProcSolidTileCollisions(s_v2* const vel, const s_rect rect_base, const s_tilemap* const tm) {
-    const s_rect rect_hor = RectTranslated(rect_base, (s_v2){vel->x, 0.0f});
+static float DistToSolidTile(const s_rect rect_base, const s_tilemap* const tm, const e_cardinal_dir dir, const float max_dist) {
+    assert(!CheckSolidTileCollision(rect_base, tm));
+
+    s_v2 jump;
+
+    switch (dir) {
+        case ek_cardinal_dir_right:
+            jump = (s_v2){1.0f, 0.0f};
+            break;
+
+        case ek_cardinal_dir_left:
+            jump = (s_v2){-1.0f, 0.0f};
+            break;
+
+        case ek_cardinal_dir_down:
+            jump = (s_v2){0.0f, 1.0f};
+            break;
+
+        case ek_cardinal_dir_up:
+            jump = (s_v2){0.0f, -1.0f};
+            break;
+    }
+
+    s_v2 accum = {0};
+
+    float dist = 0.0f;
+
+    while (dist < max_dist && !CheckSolidTileCollision(RectTranslated(rect_base, accum), tm)) {
+        accum = V2Sum(jump, accum);
+        dist += 1.0f;
+    }
+
+    return dist - 1.0f;
+}
+
+static s_rect GenCollider(const s_v2 pos, const s_v2 size, const s_v2 origin) {
+    return (s_rect){pos.x - (size.x * origin.x), pos.y - (size.y * origin.y), size.x, size.y};
+}
+
+static void ProcSolidTileCollisions(s_v2* const pos, s_v2* const vel, const s_v2 collider_size, const s_v2 collider_origin, const s_tilemap* const tm) {
+    const s_rect rect_hor = GenCollider((s_v2){pos->x + vel->x, pos->y}, collider_size, collider_origin);
 
     if (CheckSolidTileCollision(rect_hor, tm)) {
+        pos->x += DistToSolidTile(
+            GenCollider(*pos, *vel, collider_origin),
+            tm,
+            vel->x >= 0.0f ? ek_cardinal_dir_right : ek_cardinal_dir_left,
+            vel->x >= 0.0f ? vel->x : -vel->x
+        ) * (vel->x >= 0.0f ? 1.0f : -1.0f); // fuck this is bad
+
         vel->x = 0.0f;
     }
 
-    const s_rect rect_vert = RectTranslated(rect_base, (s_v2){0.0f, vel->y});
+    const s_rect rect_vert = GenCollider((s_v2){pos->x, pos->y + vel->y}, collider_size, collider_origin);
 
     if (CheckSolidTileCollision(rect_vert, tm)) {
+        /*pos->y += DistToSolidTile(
+            GenCollider(*pos, *vel, collider_origin),
+            tm,
+            vel->y >= 0.0f ? ek_cardinal_dir_down : ek_cardinal_dir_up,
+            vel->y >= 0.0f ? vel->y : -vel->y
+        ) * (vel->y >= 0.0f ? 1.0f : -1.0f); // fuck this is bad*/
+
         vel->y = 0.0f;
     }
 
-    const s_rect rect_diag = RectTranslated(rect_base, *vel);
+    const s_rect rect_diag = GenCollider((s_v2){pos->x + vel->x, pos->y + vel->y}, collider_size, collider_origin);
 
     if (CheckSolidTileCollision(rect_diag, tm)) {
         vel->x = 0.0f;
@@ -290,7 +344,7 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
             }
         }
 
-        ProcSolidTileCollisions(&player->vel, GenPlayerRect(player->pos), &lvl->tilemap);
+        ProcSolidTileCollisions(&player->pos, &player->vel, (s_v2){PLAYER_SIZE.x, PLAYER_SIZE.y}, PLAYER_ORIGIN, &lvl->tilemap);
 
         lvl->player.pos = V2Sum(lvl->player.pos, lvl->player.vel);
 
