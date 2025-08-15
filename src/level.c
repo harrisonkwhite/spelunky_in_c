@@ -6,7 +6,7 @@
 #define PLAYER_MOVE_SPD_LERP 0.2f
 #define PLAYER_JUMP_HEIGHT 4.0f
 #define PLAYER_CLIMB_SPD 1.0f
-#define PLAYER_SIZE (s_v2_s32){TILE_SIZE, TILE_SIZE}
+#define PLAYER_SIZE (s_v2_s32){TILE_SIZE - 2, TILE_SIZE - 2}
 #define PLAYER_ORIGIN (s_v2){0.5f, 0.5f}
 
 #define ARROW_SIZE (s_v2_s32){TILE_SIZE, TILE_SIZE / 2}
@@ -15,6 +15,7 @@
 
 typedef enum {
     ek_tilemap_room_type_extra,
+    ek_tilemap_room_type_entry,
     ek_tilemap_room_type_left_right_exits,
     ek_tilemap_room_type_left_right_top_exits,
     ek_tilemap_room_type_left_right_bottom_exits,
@@ -29,6 +30,7 @@ static void GenTilemapRoomTypes(t_tilemap_room_types* const room_types, t_s32* c
 
     *starting_room_x = RandRangeS32(0, TILEMAP_ROOMS_HOR);
     s_v2_s32 pen = {*starting_room_x, 0};
+    *STATIC_ARRAY_2D_ELEM(*room_types, pen.y, pen.x) = ek_tilemap_room_type_entry;
 
     while (true) {
         e_tilemap_room_type* const rt_old = STATIC_ARRAY_2D_ELEM(*room_types, pen.y, pen.x);
@@ -46,16 +48,22 @@ static void GenTilemapRoomTypes(t_tilemap_room_types* const room_types, t_s32* c
 
             if (pen.x == TILEMAP_ROOMS_HOR) {
                 pen.x--;
-                pen.y++;
+                continue;
+                //pen.y++;
             }
         } else if (rand == 3 || rand == 4) {
             pen.x--;
 
             if (pen.x == -1) {
                 pen.x++;
-                pen.y++;
+                continue;
+                //pen.y++;
             }
         } else {
+            if (pen.y == 0 && pen.x == *starting_room_x) {
+                continue;
+            }
+
             pen.y++;
         }
 
@@ -79,7 +87,7 @@ static void GenTilemapRoomTypes(t_tilemap_room_types* const room_types, t_s32* c
     }
 }
 
-static bool WARN_UNUSED_RESULT GenTilemap(s_tilemap* const tm, s_mem_arena* const temp_mem_arena) {
+static bool WARN_UNUSED_RESULT GenTilemap(s_tilemap* const tm, s_v2* const player_pos, s_mem_arena* const temp_mem_arena) {
     assert(IS_ZERO(*tm));
 
     t_tilemap_room_types room_types = {0};
@@ -134,6 +142,9 @@ static bool WARN_UNUSED_RESULT GenTilemap(s_tilemap* const tm, s_mem_arena* cons
                         STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_gold;
                     } else if (tex_px_r == 0 && tex_px_g == 255 && tex_px_b == 0 && tex_px_a == 255) {
                         STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_shooter;
+                    } else if (tex_px_r == 0 && tex_px_g == 0 && tex_px_b == 255 && tex_px_a == 255) {
+                        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_entrance;
+                        *player_pos = (s_v2){(tx + 0.5f) * TILE_SIZE, (ty + 0.5f) * TILE_SIZE};
                     } else {
                         assert(tex_px_r == 0 && tex_px_g == 0 && tex_px_b == 0 && tex_px_a == 0 && "forgettinga tile!");
                     }
@@ -274,14 +285,9 @@ static void ProcSolidTileCollisions(s_v2* const pos, s_v2* const vel, const s_v2
 bool GenLevel(s_level* const lvl, s_mem_arena* const temp_mem_arena) {
     assert(IS_ZERO(*lvl));
 
-    if (!GenTilemap(&lvl->tilemap, temp_mem_arena)) {
+    if (!GenTilemap(&lvl->tilemap, &lvl->player.pos, temp_mem_arena)) {
         return false;
     }
-
-    lvl->player.pos = (s_v2){
-        (lvl->tilemap.starting_room_x + 0.5f) * TILEMAP_ROOM_WIDTH * TILE_SIZE,
-        0.5f * TILEMAP_ROOM_HEIGHT * TILE_SIZE
-    };
 
     lvl->hp = HP_LIMIT;
 
@@ -475,6 +481,10 @@ void RenderLevel(s_level* const lvl, const s_rendering_context* const rc) {
 
                 case ek_tile_state_shooter:
                     col = GRAY.rgb;
+                    break;
+
+                case ek_tile_state_entrance:
+                    col = BLUE.rgb;
                     break;
 
                 default:

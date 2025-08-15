@@ -33,7 +33,8 @@ typedef enum {
     ek_tile_state_dirt,
     ek_tile_state_ladder,
     ek_tile_state_gold,
-    ek_tile_state_shooter
+    ek_tile_state_shooter,
+    ek_tile_state_entrance
 } e_tile_state;
 
 static bool g_tile_states_solid[] = {
@@ -41,7 +42,8 @@ static bool g_tile_states_solid[] = {
     [ek_tile_state_dirt] = true,
     [ek_tile_state_ladder] = false,
     [ek_tile_state_gold] = false,
-    [ek_tile_state_shooter] = true
+    [ek_tile_state_shooter] = true,
+    [ek_tile_state_entrance] = false
 };
 
 typedef struct {
