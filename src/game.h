@@ -80,12 +80,9 @@ typedef enum {
 } e_enemy_type;
 
 typedef struct {
-    bool facing_right;
+    s_v2 vel;
+    int move_axis;
 } s_snake_enemy_type_data;
-
-typedef union {
-    s_snake_enemy_type_data snake;
-} u_enemy_type_data;
 
 typedef struct {
     bool active; // screw bitsets amiright
@@ -93,7 +90,10 @@ typedef struct {
     s_v2 pos;
 
     e_enemy_type type;
-    u_enemy_type_data type_data;
+
+    union {
+        s_snake_enemy_type_data snake_type;
+    };
 } s_enemy;
 
 typedef struct {

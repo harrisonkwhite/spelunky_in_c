@@ -15,6 +15,9 @@
 
 #define SNAKE_SIZE (s_v2_s32){TILE_SIZE - 2, TILE_SIZE - 6}
 #define SNAKE_ORIGIN (s_v2){0.5f, 0.5f}
+#define SNAKE_MOVE_SPD 0.5f
+#define SNAKE_MOVE_SPD_LERP 0.1f
+#define SNAKE_AHEAD_DIST 4.0f
 
 typedef enum {
     ek_tilemap_room_type_extra,
@@ -98,86 +101,36 @@ static void GenTilemapRoomTypes(t_tilemap_room_types* const room_types, t_s32* c
     }
 }
 
-static bool WARN_UNUSED_RESULT GenTilemap(s_tilemap* const tm, s_v2* const player_pos, s_mem_arena* const temp_mem_arena) {
-    assert(IS_ZERO(*tm));
+static void SpawnEnemy(s_level* const lvl, const s_v2 pos, const e_enemy_type enemy_type) {
+    int enemy_index = -1;
 
-    t_tilemap_room_types room_types = {0};
-    GenTilemapRoomTypes(&room_types, &tm->starting_room_x);
+    for (int i = 0; i < STATIC_ARRAY_LEN(lvl->enemies); i++) {
+        const s_enemy* const enemy = STATIC_ARRAY_ELEM(lvl->enemies, i);
 
-    s_rgba_texture rooms_tex = {0};
-
-    if (!LoadRGBATextureFromRawFile(&rooms_tex, temp_mem_arena, (s_char_array_view)ARRAY_FROM_STATIC("rooms.png"))) {
-        return false;
-    }
-
-#if 0
-    for (int py = 0; py < rooms_tex.tex_size.y; py++) {
-        for (int px = 0; px < rooms_tex.tex_size.x; px++) {
-            const int px_index = (py * rooms_tex.tex_size.x) + px;
-            const int r = *U8Elem(rooms_tex.px_data, (px_index * 4) + 0);
-            const int g = *U8Elem(rooms_tex.px_data, (px_index * 4) + 1);
-            const int b = *U8Elem(rooms_tex.px_data, (px_index * 4) + 2);
-            const int a = *U8Elem(rooms_tex.px_data, (px_index * 4) + 3);
-
-            LOG("rgba: %d, %d, %d, %d", r, g, b, a);
-        }
-    }
-#endif
-
-    for (int ry = 0; ry < TILEMAP_ROOMS_VERT; ry++) {
-        for (int rx = 0; rx < TILEMAP_ROOMS_HOR; rx++) {
-            const e_tilemap_room_type rt = *STATIC_ARRAY_2D_ELEM(room_types, ry, rx);
-
-            const int rooms_tex_tl_x = TILEMAP_ROOM_WIDTH * rt;
-            const int rooms_tex_tl_y = 0;
-
-            for (int tyo = 0; tyo < TILEMAP_ROOM_HEIGHT; tyo++) {
-                for (int txo = 0; txo < TILEMAP_ROOM_WIDTH; txo++) {
-                    const int tex_x = rooms_tex_tl_x + txo;
-                    const int tex_y = rooms_tex_tl_y + tyo;
-                    const int tex_px_index = (tex_y * rooms_tex.tex_size.x) + tex_x;
-
-                    const t_u8 tex_px_r = *U8Elem(rooms_tex.px_data, (tex_px_index * 4) + 0);
-                    const t_u8 tex_px_g = *U8Elem(rooms_tex.px_data, (tex_px_index * 4) + 1);
-                    const t_u8 tex_px_b = *U8Elem(rooms_tex.px_data, (tex_px_index * 4) + 2);
-                    const t_u8 tex_px_a = *U8Elem(rooms_tex.px_data, (tex_px_index * 4) + 3);
-
-                    const int tx = (rx * TILEMAP_ROOM_WIDTH) + txo;
-                    const int ty = (ry * TILEMAP_ROOM_HEIGHT) + tyo;
-
-                    if (tex_px_r == 0 && tex_px_g == 0 && tex_px_b == 0 && tex_px_a == 255) {
-                        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_dirt;
-                    } else if (tex_px_r == 255 && tex_px_g == 0 && tex_px_b == 0 && tex_px_a == 255) {
-                        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_ladder;
-                    } else if (tex_px_r == 255 && tex_px_g == 255 && tex_px_b == 0 && tex_px_a == 255) {
-                        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_gold;
-                    } else if (tex_px_r == 0 && tex_px_g == 255 && tex_px_b == 0 && tex_px_a == 255) {
-                        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_shooter;
-                    } else if (tex_px_r == 0 && tex_px_g == 0 && tex_px_b == 255 && tex_px_a == 255) {
-                        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_entrance;
-                        *player_pos = (s_v2){(tx + 0.5f) * TILE_SIZE, (ty + 0.5f) * TILE_SIZE};
-                    } else if (tex_px_r == 255 && tex_px_g == 0 && tex_px_b == 255 && tex_px_a == 255) {
-                        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_exit;
-                    } else {
-                        assert(tex_px_r == 0 && tex_px_g == 0 && tex_px_b == 0 && tex_px_a == 0 && "forgettinga tile!");
-                    }
-                }
-            }
+        if (!enemy->active) {
+            enemy_index = i;
+            break;
         }
     }
 
-    // Add boundaries.
-    for (int ty = 0; ty < TILEMAP_HEIGHT; ty++) {
-        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, 0)->state = ek_tile_state_dirt;
-        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, TILEMAP_WIDTH - 1)->state = ek_tile_state_dirt;
+    if (enemy_index == -1) {
+        LOG_WARNING("out of enemy space");
+        return;
     }
 
-    for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
-        STATIC_ARRAY_2D_ELEM(tm->tiles, 0, tx)->state = ek_tile_state_dirt;
-        STATIC_ARRAY_2D_ELEM(tm->tiles, TILEMAP_HEIGHT - 1, tx)->state = ek_tile_state_dirt;
-    }
+    s_enemy* const enemy = STATIC_ARRAY_ELEM(lvl->enemies, enemy_index);
 
-    return true;
+    *enemy = (s_enemy){
+        .pos = pos,
+        .type = enemy_type,
+        .active = true
+    };
+
+    switch (enemy->type) {
+        case ek_enemy_type_snake:
+            enemy->snake_type.move_axis = RandPerc() < 0.5f ? 1 : -1;
+            break;
+    }
 }
 
 static s_rect GenPlayerRect(const s_v2 player_pos) {
@@ -322,8 +275,86 @@ static void ProcSolidTileCollisions(s_v2* const pos, s_v2* const vel, const s_v2
 bool GenLevel(s_level* const lvl, s_mem_arena* const temp_mem_arena) {
     assert(IS_ZERO(*lvl));
 
-    if (!GenTilemap(&lvl->tilemap, &lvl->player.pos, temp_mem_arena)) {
+    s_tilemap* const tm = &lvl->tilemap;
+
+    t_tilemap_room_types room_types = {0};
+    GenTilemapRoomTypes(&room_types, &tm->starting_room_x);
+
+    s_rgba_texture rooms_tex = {0};
+
+    if (!LoadRGBATextureFromRawFile(&rooms_tex, temp_mem_arena, (s_char_array_view)ARRAY_FROM_STATIC("rooms.png"))) {
         return false;
+    }
+
+#if 0
+    for (int py = 0; py < rooms_tex.tex_size.y; py++) {
+        for (int px = 0; px < rooms_tex.tex_size.x; px++) {
+            const int px_index = (py * rooms_tex.tex_size.x) + px;
+            const int r = *U8Elem(rooms_tex.px_data, (px_index * 4) + 0);
+            const int g = *U8Elem(rooms_tex.px_data, (px_index * 4) + 1);
+            const int b = *U8Elem(rooms_tex.px_data, (px_index * 4) + 2);
+            const int a = *U8Elem(rooms_tex.px_data, (px_index * 4) + 3);
+
+            LOG("rgba: %d, %d, %d, %d", r, g, b, a);
+        }
+    }
+#endif
+
+    for (int ry = 0; ry < TILEMAP_ROOMS_VERT; ry++) {
+        for (int rx = 0; rx < TILEMAP_ROOMS_HOR; rx++) {
+            const e_tilemap_room_type rt = *STATIC_ARRAY_2D_ELEM(room_types, ry, rx);
+
+            const int rooms_tex_tl_x = TILEMAP_ROOM_WIDTH * rt;
+            const int rooms_tex_tl_y = 0;
+
+            for (int tyo = 0; tyo < TILEMAP_ROOM_HEIGHT; tyo++) {
+                for (int txo = 0; txo < TILEMAP_ROOM_WIDTH; txo++) {
+                    const int tex_x = rooms_tex_tl_x + txo;
+                    const int tex_y = rooms_tex_tl_y + tyo;
+                    const int tex_px_index = (tex_y * rooms_tex.tex_size.x) + tex_x;
+
+                    const t_u8 tex_px_r = *U8Elem(rooms_tex.px_data, (tex_px_index * 4) + 0);
+                    const t_u8 tex_px_g = *U8Elem(rooms_tex.px_data, (tex_px_index * 4) + 1);
+                    const t_u8 tex_px_b = *U8Elem(rooms_tex.px_data, (tex_px_index * 4) + 2);
+                    const t_u8 tex_px_a = *U8Elem(rooms_tex.px_data, (tex_px_index * 4) + 3);
+
+                    const int tx = (rx * TILEMAP_ROOM_WIDTH) + txo;
+                    const int ty = (ry * TILEMAP_ROOM_HEIGHT) + tyo;
+
+                    const s_v2 tile_center_in_lvl = (s_v2){(tx + 0.5f) * TILE_SIZE, (ty + 0.5f) * TILE_SIZE};
+
+                    if (tex_px_r == 0 && tex_px_g == 0 && tex_px_b == 0 && tex_px_a == 255) {
+                        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_dirt;
+                    } else if (tex_px_r == 255 && tex_px_g == 0 && tex_px_b == 0 && tex_px_a == 255) {
+                        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_ladder;
+                    } else if (tex_px_r == 255 && tex_px_g == 255 && tex_px_b == 0 && tex_px_a == 255) {
+                        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_gold;
+                    } else if (tex_px_r == 0 && tex_px_g == 255 && tex_px_b == 0 && tex_px_a == 255) {
+                        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_shooter;
+                    } else if (tex_px_r == 0 && tex_px_g == 0 && tex_px_b == 255 && tex_px_a == 255) {
+                        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_entrance;
+                        lvl->player.pos = tile_center_in_lvl;
+                    } else if (tex_px_r == 255 && tex_px_g == 0 && tex_px_b == 255 && tex_px_a == 255) {
+                        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_exit;
+                    } else if (tex_px_r == 0 && tex_px_g == 255 && tex_px_b == 255 && tex_px_a == 255) {
+                        SpawnEnemy(lvl, tile_center_in_lvl, ek_enemy_type_snake);
+                    } else {
+                        assert(tex_px_r == 0 && tex_px_g == 0 && tex_px_b == 0 && tex_px_a == 0 && "forgettinga tile!");
+                    }
+                }
+            }
+        }
+    }
+
+    // Add boundaries.
+    for (int ty = 0; ty < TILEMAP_HEIGHT; ty++) {
+        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, 0)->state = ek_tile_state_dirt;
+        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, TILEMAP_WIDTH - 1)->state = ek_tile_state_dirt;
+    }
+
+    for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
+        STATIC_ARRAY_2D_ELEM(tm->tiles, 0, tx)->state = ek_tile_state_dirt;
+        STATIC_ARRAY_2D_ELEM(tm->tiles, TILEMAP_HEIGHT - 1, tx)->state = ek_tile_state_dirt;
     }
 
     lvl->hp = HP_LIMIT;
@@ -483,6 +514,43 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
     }
 
     //
+    // Enemies
+    //
+    for (int i = 0; i < STATIC_ARRAY_LEN(lvl->enemies); i++) {
+        s_enemy* const enemy = STATIC_ARRAY_ELEM(lvl->enemies, i);
+
+        if (!enemy->active) {
+            continue;
+        }
+
+        const s_rect rect = GenEnemyRect(enemy->pos, enemy->type);
+
+        switch (enemy->type) {
+            case ek_enemy_type_snake:
+                {
+                    const float vel_x_dest = SNAKE_MOVE_SPD * enemy->snake_type.move_axis;
+                    enemy->snake_type.vel.x = Lerp(enemy->snake_type.vel.x, vel_x_dest, SNAKE_MOVE_SPD_LERP);
+
+                    const s_rect rect_ahead = RectTranslated(rect, (s_v2){SNAKE_AHEAD_DIST * enemy->snake_type.move_axis, 0.0f});
+
+                    if (CheckSolidTileCollision(rect_ahead, &lvl->tilemap, false)) {
+                        enemy->snake_type.move_axis *= -1;
+                    }
+
+                    enemy->snake_type.vel.y += GRAVITY;
+
+                    ProcSolidTileCollisions(&enemy->pos, &enemy->snake_type.vel, (s_v2){SNAKE_SIZE.x, SNAKE_SIZE.y}, SNAKE_ORIGIN, &lvl->tilemap);
+
+                    enemy->pos = V2Sum(enemy->pos, enemy->snake_type.vel);
+
+                    SpawnHitbox(lvl, enemy->pos, (s_v2){SNAKE_SIZE.x, SNAKE_SIZE.y}, SNAKE_ORIGIN, 1, true);
+                }
+
+                break;
+        }
+    }
+
+    //
     // Processing Player collisions with hitboxes
     //
     {
@@ -580,7 +648,7 @@ void RenderLevel(s_level* const lvl, const s_rendering_context* const rc) {
     //
     // Enemies
     //
-    for (int i = 0; i < sizeof(lvl->enemies); i++) {
+    for (int i = 0; i < STATIC_ARRAY_LEN(lvl->enemies); i++) {
         const s_enemy* const enemy = STATIC_ARRAY_ELEM(lvl->enemies, i);
 
         if (!enemy->active) {
