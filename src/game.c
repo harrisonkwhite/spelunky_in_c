@@ -3,6 +3,10 @@
 bool InitGame(const s_game_init_context* const zfw_context) {
     s_game* const game = zfw_context->dev_mem;
 
+    if (!InitFontGroupFromFiles(&game->fonts, (s_char_array_view_array_view)ARRAY_FROM_STATIC(g_font_file_paths), zfw_context->perm_mem_arena, zfw_context->gl_res_arena, zfw_context->temp_mem_arena)) {
+        return false;
+    }
+
     if (!GenLevel(&game->lvl, zfw_context->temp_mem_arena)) {
         return false;
     }
@@ -32,7 +36,12 @@ bool RenderGame(const s_game_render_context* const zfw_context) {
     const s_rendering_context* const rc = &zfw_context->rendering_context;
 
     Clear(rc, PURPLE);
+
     RenderLevel(&game->lvl, &zfw_context->rendering_context);
+
+    if (!RenderLevelUI(&game->lvl, &zfw_context->rendering_context, &game->fonts, zfw_context->temp_mem_arena)) {
+        return false;
+    }
 
     return true;
 }

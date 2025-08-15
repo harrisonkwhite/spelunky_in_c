@@ -125,6 +125,10 @@ static bool WARN_UNUSED_RESULT GenTilemap(s_tilemap* const tm, s_mem_arena* cons
                         *STATIC_ARRAY_2D_ELEM(tm->states, ty, tx) = ek_tile_state_dirt;
                     } else if (tex_px_r == 255 && tex_px_g == 0 && tex_px_b == 0 && tex_px_a == 255) {
                         *STATIC_ARRAY_2D_ELEM(tm->states, ty, tx) = ek_tile_state_ladder;
+                    } else if (tex_px_r == 255 && tex_px_g == 255 && tex_px_b == 0 && tex_px_a == 255) {
+                        *STATIC_ARRAY_2D_ELEM(tm->states, ty, tx) = ek_tile_state_gold;
+                    } else {
+                        assert(tex_px_r == 0 && tex_px_g == 0 && tex_px_b == 0 && tex_px_a == 0 && "forgettinga tile!");
                     }
                 }
             }
@@ -173,7 +177,9 @@ static bool CheckSolidTileCollision(const s_rect rect, const s_tilemap* const tm
     return false;
 }
 
-static bool CheckTileCollisionWithState(const s_rect rect, const s_tilemap* const tm, const e_tile_state state) {
+static bool CheckTileCollisionWithState(s_v2_s32* const tp, const s_rect rect, const s_tilemap* const tm, const e_tile_state state) {
+    assert(!tp || IS_ZERO(*tp));
+
     for (int ty = 0; ty < TILEMAP_HEIGHT; ty++) {
         for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
             const e_tile_state ts = *STATIC_ARRAY_2D_ELEM(tm->states, ty, tx);
@@ -185,6 +191,10 @@ static bool CheckTileCollisionWithState(const s_rect rect, const s_tilemap* cons
             const s_rect tr = GenTileRect(tx, ty);
 
             if (DoRectsInters(rect, tr)) {
+                if (tp) {
+                    *tp = (s_v2_s32){tx, ty};
+                }
+
                 return true;
             }
         }
@@ -193,7 +203,7 @@ static bool CheckTileCollisionWithState(const s_rect rect, const s_tilemap* cons
     return false;
 }
 
-static void ProcTileCollisions(s_v2* const vel, const s_rect rect_base, const s_tilemap* const tm) {
+static void ProcSolidTileCollisions(s_v2* const vel, const s_rect rect_base, const s_tilemap* const tm) {
     const s_rect rect_hor = RectTranslated(rect_base, (s_v2){vel->x, 0.0f});
 
     if (CheckSolidTileCollision(rect_hor, tm)) {
@@ -246,34 +256,51 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
             stuck = false;
         }*/
 
-        const bool touching_ladder = CheckTileCollisionWithState(GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_ladder);
+        const bool on_ground = CheckSolidTileCollision(RectTranslated(GenPlayerRect(lvl->player.pos), (s_v2){0.0f, 1.0f}), &lvl->tilemap);
+        const bool touching_ladder = CheckTileCollisionWithState(NULL, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_ladder);
 
-        if (IsKeyDown(&zfw_context->input_context, ek_key_code_up)) {
-            if (touching_ladder) {
-                lvl->player.vel.y = -PLAYER_CLIMB_SPD;
+        if (on_ground) {
+            lvl->player.cant_climb = false;
+        }
+
+        if (touching_ladder) {
+            if (!lvl->player.cant_climb && IsKeyDown(&zfw_context->input_context, ek_key_code_up)) {
                 lvl->player.climbing = true;
+            }
+        } else {
+            if (lvl->player.climbing) {
+                lvl->player.climbing = false;
+                lvl->player.cant_climb = true;
             }
         }
 
-        if (!touching_ladder) {
-            lvl->player.climbing = false;
-        }
-
-        if (!lvl->player.climbing) {
+        if (lvl->player.climbing) {
+            if (IsKeyDown(&zfw_context->input_context, ek_key_code_up)) {
+                lvl->player.vel.y = -PLAYER_CLIMB_SPD;
+            } else {
+                lvl->player.vel.y = 0.0f;
+            }
+        } else {
             lvl->player.vel.y += GRAVITY;
         }
 
-        if (CheckSolidTileCollision(RectTranslated(GenPlayerRect(lvl->player.pos), (s_v2){0.0f, 1.0f}), &lvl->tilemap)) {
+        if (on_ground) {
             if (IsKeyPressed(&zfw_context->input_context, ek_key_code_space)) {
                 lvl->player.vel.y = -PLAYER_JUMP_HEIGHT;
             }
         }
 
-        ProcTileCollisions(&player->vel, GenPlayerRect(player->pos), &lvl->tilemap);
+        ProcSolidTileCollisions(&player->vel, GenPlayerRect(player->pos), &lvl->tilemap);
 
         lvl->player.pos = V2Sum(lvl->player.pos, lvl->player.vel);
 
-        
+        // Check for gold!
+        s_v2_s32 gold_tile_pos = {0};
+
+        if (CheckTileCollisionWithState(&gold_tile_pos, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_gold)) {
+            *STATIC_ARRAY_2D_ELEM(lvl->tilemap.states, gold_tile_pos.y, gold_tile_pos.x) = ek_tile_state_empty;
+            lvl->gold_cnt++;
+        }
     }
 }
 
@@ -302,11 +329,15 @@ void RenderLevel(s_level* const lvl, const s_rendering_context* const rc) {
 
             switch (ts) {
                 case ek_tile_state_dirt:
-                    col = WHITE.rgb;
+                    col = BROWN.rgb;
                     break;
 
                 case ek_tile_state_ladder:
                     col = RED.rgb;
+                    break;
+
+                case ek_tile_state_gold:
+                    col = YELLOW.rgb;
                     break;
             }
 
@@ -321,4 +352,23 @@ void RenderLevel(s_level* const lvl, const s_rendering_context* const rc) {
         const s_rect rect = GenPlayerRect(lvl->player.pos);
         RenderRectWithOutlineAndOpaqueFill(rc, rect, WHITE.rgb, BLACK, 1.0f);
     }
+
+    //
+    // Resetting View Matrix
+    //
+    {
+        s_matrix_4x4 identity_mat = IdentityMatrix4x4();
+        SetViewMatrix(rc, &identity_mat);
+    }
+}
+
+bool RenderLevelUI(s_level* const lvl, const s_rendering_context* const rc, const s_font_group* const fonts, s_mem_arena* const temp_mem_arena) {
+    char gold_str[8];
+    snprintf(gold_str, sizeof(gold_str), "GOLD: %d", lvl->gold_cnt);
+
+    if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(gold_str), fonts, ek_font_medodica_96, (s_v2){0}, ALIGNMENT_TOP_LEFT, WHITE, temp_mem_arena)) {
+        return false;
+    }
+
+    return true;
 }
