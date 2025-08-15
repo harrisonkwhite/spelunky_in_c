@@ -1,5 +1,10 @@
 [
     {
+        "type": "texture",
+        "output_file_path": "assets/textures/level",
+        "file_path": "assets_raw/textures/level.png"
+    },
+    {
         "type": "font",
         "output_file_path": "assets/fonts/medodica_96",
         "file_path": "assets_raw/fonts/medodica.otf",

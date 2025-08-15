@@ -22,6 +22,34 @@
 #define CAMERA_SCALE 3.0f
 
 typedef enum {
+    ek_texture_level,
+    eks_texture_cnt
+} e_texture;
+
+static s_rgba_texture GenTextureRGBA(const t_s32 tex_index, s_mem_arena* const mem_arena) {
+    switch ((e_texture)tex_index) {
+        case ek_texture_level:
+            return LoadRGBATextureFromPackedFile((s_char_array_view)ARRAY_FROM_STATIC("assets/textures/level"), mem_arena);
+    }
+}
+
+typedef enum {
+    ek_sprite_dirt_tile
+} e_sprite;
+
+typedef struct {
+    e_texture tex;
+    s_rect_s32 src_rect;
+} s_sprite_info;
+
+static s_sprite_info g_sprite_infos[] = {
+    [ek_sprite_dirt_tile] = {
+        .tex = ek_texture_level,
+        .src_rect = {0, 0, 8, 8}
+    }
+};
+
+typedef enum {
     ek_font_medodica_96,
     ek_font_medodica_128
 } e_font;
@@ -125,6 +153,7 @@ typedef struct {
 } s_level;
 
 typedef struct {
+    s_texture_group textures;
     s_font_group fonts;
     s_level lvl;
 } s_game;
@@ -138,5 +167,11 @@ bool WARN_UNUSED_RESULT GenLevel(s_level* const lvl, s_mem_arena* const temp_mem
 void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_context);
 void RenderLevel(s_level* const lvl, const s_rendering_context* const rc);
 bool RenderLevelUI(s_level* const lvl, const s_rendering_context* const rc, const s_font_group* const fonts, s_mem_arena* const temp_mem_arena);
+
+static inline void RenderSprite(const s_rendering_context* const rendering_context, const s_texture_group* const textures, const e_sprite spr, const s_v2 pos, const s_v2 origin, const s_v2 scale, const t_r32 rot, const u_v4 blend) {
+    const s_sprite_info* const spr_info = STATIC_ARRAY_ELEM(g_sprite_infos, spr);
+    RenderTexture(rendering_context, textures, spr_info->tex, spr_info->src_rect, pos, origin, scale, rot, blend);
+
+}
 
 #endif
