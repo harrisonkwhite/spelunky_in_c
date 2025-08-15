@@ -19,7 +19,9 @@ typedef enum {
     ek_tilemap_room_type_left_right_exits,
     ek_tilemap_room_type_left_right_top_exits,
     ek_tilemap_room_type_left_right_bottom_exits,
-    ek_tilemap_room_type_left_right_bottom_top_exits
+    ek_tilemap_room_type_left_right_bottom_top_exits,
+    ek_tilemap_room_type_end_with_left_right_exits,
+    ek_tilemap_room_type_end_with_left_right_top_exits
 } e_tilemap_room_type;
 
 typedef e_tilemap_room_type t_tilemap_room_types[TILEMAP_ROOMS_VERT][TILEMAP_ROOMS_HOR];
@@ -68,6 +70,12 @@ static void GenTilemapRoomTypes(t_tilemap_room_types* const room_types, t_s32* c
         }
 
         if (pen.y == TILEMAP_ROOMS_VERT) {
+            if (*rt_old == ek_tilemap_room_type_left_right_exits) {
+                *rt_old = ek_tilemap_room_type_end_with_left_right_exits;
+            } else if (*rt_old == ek_tilemap_room_type_left_right_top_exits) {
+                *rt_old = ek_tilemap_room_type_end_with_left_right_top_exits;
+            }
+
             break;
         }
 
@@ -145,6 +153,8 @@ static bool WARN_UNUSED_RESULT GenTilemap(s_tilemap* const tm, s_v2* const playe
                     } else if (tex_px_r == 0 && tex_px_g == 0 && tex_px_b == 255 && tex_px_a == 255) {
                         STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_entrance;
                         *player_pos = (s_v2){(tx + 0.5f) * TILE_SIZE, (ty + 0.5f) * TILE_SIZE};
+                    } else if (tex_px_r == 255 && tex_px_g == 0 && tex_px_b == 255 && tex_px_a == 255) {
+                        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_exit;
                     } else {
                         assert(tex_px_r == 0 && tex_px_g == 0 && tex_px_b == 0 && tex_px_a == 0 && "forgettinga tile!");
                     }
@@ -447,8 +457,10 @@ void RenderLevel(s_level* const lvl, const s_rendering_context* const rc) {
     const s_v2_s32 view_size = {rc->window_size.x / CAMERA_SCALE, rc->window_size.y / CAMERA_SCALE};
 
     s_matrix_4x4 lvl_view_mat = IdentityMatrix4x4();
+#if NO_WORLD_GEN_DEBUG
     TranslateMatrix4x4(&lvl_view_mat, (s_v2){(-lvl->player.pos.x + (view_size.x / 2.0f)) * CAMERA_SCALE, (-lvl->player.pos.y + (view_size.y / 2.0f)) * CAMERA_SCALE});
     ScaleMatrix4x4(&lvl_view_mat, CAMERA_SCALE);
+#endif
     SetViewMatrix(rc, &lvl_view_mat);
 
     //
@@ -485,6 +497,10 @@ void RenderLevel(s_level* const lvl, const s_rendering_context* const rc) {
 
                 case ek_tile_state_entrance:
                     col = BLUE.rgb;
+                    break;
+
+                case ek_tile_state_exit:
+                    col = MAGENTA.rgb;
                     break;
 
                 default:

@@ -3,6 +3,8 @@
 
 #include <zfwc.h>
 
+#define NO_WORLD_GEN_DEBUG 0
+
 #define DEATH_MSG "YOU DIED!"
 
 #define HP_LIMIT 3
@@ -34,7 +36,8 @@ typedef enum {
     ek_tile_state_ladder,
     ek_tile_state_gold,
     ek_tile_state_shooter,
-    ek_tile_state_entrance
+    ek_tile_state_entrance,
+    ek_tile_state_exit
 } e_tile_state;
 
 static bool g_tile_states_solid[] = {
@@ -43,7 +46,8 @@ static bool g_tile_states_solid[] = {
     [ek_tile_state_ladder] = false,
     [ek_tile_state_gold] = false,
     [ek_tile_state_shooter] = true,
-    [ek_tile_state_entrance] = false
+    [ek_tile_state_entrance] = false,
+    [ek_tile_state_exit] = false
 };
 
 typedef struct {
