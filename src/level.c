@@ -13,6 +13,9 @@
 #define ARROW_ORIGIN (s_v2){0.5f, 0.5f}
 #define ARROW_SPD 8.0f
 
+#define SNAKE_SIZE (s_v2_s32){TILE_SIZE - 2, TILE_SIZE - 6}
+#define SNAKE_ORIGIN (s_v2){0.5f, 0.5f}
+
 typedef enum {
     ek_tilemap_room_type_extra,
     ek_tilemap_room_type_entry,
@@ -179,6 +182,13 @@ static bool WARN_UNUSED_RESULT GenTilemap(s_tilemap* const tm, s_v2* const playe
 
 static s_rect GenPlayerRect(const s_v2 player_pos) {
     return (s_rect){player_pos.x - (PLAYER_SIZE.x * PLAYER_ORIGIN.x), player_pos.y - (PLAYER_SIZE.y * PLAYER_ORIGIN.y), PLAYER_SIZE.x, PLAYER_SIZE.y};
+}
+
+static s_rect GenEnemyRect(const s_v2 enemy_pos, const e_enemy_type enemy_type) {
+    switch (enemy_type) {
+        case ek_enemy_type_snake:
+            return (s_rect){enemy_pos.x - (SNAKE_SIZE.x * SNAKE_ORIGIN.x), enemy_pos.y - (SNAKE_SIZE.y * SNAKE_ORIGIN.y), SNAKE_SIZE.x, SNAKE_SIZE.y};
+    }
 }
 
 static s_rect GenArrowRect(const s_v2 arrow_pos) {
@@ -565,6 +575,28 @@ void RenderLevel(s_level* const lvl, const s_rendering_context* const rc) {
     if (DoesPlayerExist(lvl)) {
         const s_rect rect = GenPlayerRect(lvl->player.pos);
         RenderRectWithOutlineAndOpaqueFill(rc, rect, WHITE.rgb, BLACK, 1.0f);
+    }
+
+    //
+    // Enemies
+    //
+    for (int i = 0; i < sizeof(lvl->enemies); i++) {
+        const s_enemy* const enemy = STATIC_ARRAY_ELEM(lvl->enemies, i);
+
+        if (!enemy->active) {
+            continue;
+        }
+
+        u_v3 col;
+
+        switch (enemy->type) {
+            case ek_enemy_type_snake:
+                col = GREEN.rgb;
+                break;
+        }
+
+        const s_rect rect = GenEnemyRect(enemy->pos, enemy->type);
+        RenderRectWithOutlineAndOpaqueFill(rc, rect, col, BLACK, 1.0f);
     }
 
     //

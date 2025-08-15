@@ -75,6 +75,27 @@ typedef struct {
     bool right;
 } s_arrow;
 
+typedef enum {
+    ek_enemy_type_snake
+} e_enemy_type;
+
+typedef struct {
+    bool facing_right;
+} s_snake_enemy_type_data;
+
+typedef union {
+    s_snake_enemy_type_data snake;
+} u_enemy_type_data;
+
+typedef struct {
+    bool active; // screw bitsets amiright
+
+    s_v2 pos;
+
+    e_enemy_type type;
+    u_enemy_type_data type_data;
+} s_enemy;
+
 typedef struct {
     s_rect rect;
     int dmg;
@@ -83,12 +104,15 @@ typedef struct {
 
 typedef struct {
     s_tilemap tilemap;
+
     s_player player;
 
-    s_arrow arrows[8];
+    s_enemy enemies[128];
+
+    s_arrow arrows[16];
     int arrow_cnt;
 
-    s_hitbox hitboxes[32];
+    s_hitbox hitboxes[128];
     int hitbox_cnt;
 
     int hp;
