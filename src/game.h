@@ -10,6 +10,8 @@
 #define TILEMAP_WIDTH (TILEMAP_ROOM_WIDTH * TILEMAP_ROOMS_HOR)
 #define TILEMAP_HEIGHT (TILEMAP_ROOM_HEIGHT * TILEMAP_ROOMS_VERT)
 
+#define TILE_SIZE 16
+
 typedef enum {
     ek_tile_state_empty,
     ek_tile_state_dirt
