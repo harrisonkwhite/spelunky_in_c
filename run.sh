@@ -7,4 +7,4 @@ cmake --build .
 cp compile_commands.json ..
 cd ..
 ./build/zeta_framework/zfw_asset_packer/zfw_asset_packer
-./build/untitled_game
+./build/spelunky_in_c

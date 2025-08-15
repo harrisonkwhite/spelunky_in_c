@@ -3,6 +3,8 @@
 #include <stdlib.h>
 
 int main() {
+    LOG("sahdjklashdk");
+
     const s_game_info game_info = {
         .window_init_size = {1280, 720},
         .window_title = ARRAY_FROM_STATIC("Spelunky in C"),
