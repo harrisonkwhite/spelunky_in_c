@@ -6,8 +6,6 @@
 #define NO_WORLD_GEN_DEBUG 1
 #define SHOW_DEBUG_HITBOXES 1
 
-#define DEATH_MSG "YOU DIED!"
-
 #define HP_LIMIT 3
 
 #define TILEMAP_ROOM_WIDTH 12
@@ -18,6 +16,8 @@
 #define TILEMAP_HEIGHT (TILEMAP_ROOM_HEIGHT * TILEMAP_ROOMS_VERT)
 
 #define TILE_SIZE 16
+
+#define GOLD_INCR 250
 
 #define CAMERA_SCALE 4.0f
 
@@ -36,6 +36,7 @@ static s_rgba_texture GenTextureRGBA(const t_s32 tex_index, s_mem_arena* const m
 typedef enum {
     ek_sprite_dirt_tile,
     ek_sprite_ladder_tile,
+    ek_sprite_gold_tile,
     ek_sprite_player
 } e_sprite;
 
@@ -53,6 +54,10 @@ static s_sprite_info g_sprite_infos[] = {
         .tex = ek_texture_level,
         .src_rect = {16, 0, 16, 16}
     },
+    [ek_sprite_gold_tile] = {
+        .tex = ek_texture_level,
+        .src_rect = {32, 0, 16, 16}
+    },
     [ek_sprite_player] = {
         .tex = ek_texture_level,
         .src_rect = {1, 33, 14, 14}
@@ -60,13 +65,13 @@ static s_sprite_info g_sprite_infos[] = {
 };
 
 typedef enum {
-    ek_font_medodica_96,
-    ek_font_medodica_128
+    ek_font_roboto_96,
+    ek_font_roboto_128
 } e_font;
 
 static const s_char_array_view g_font_file_paths[] = {
-    [ek_font_medodica_96] = ARRAY_FROM_STATIC("assets/fonts/medodica_96"),
-    [ek_font_medodica_128] = ARRAY_FROM_STATIC("assets/fonts/medodica_128")
+    [ek_font_roboto_96] = ARRAY_FROM_STATIC("assets/fonts/roboto_96"),
+    [ek_font_roboto_128] = ARRAY_FROM_STATIC("assets/fonts/roboto_128")
 };
 
 typedef enum {
@@ -92,6 +97,10 @@ static bool g_tile_states_solid[] = {
 static e_sprite g_tile_state_sprs[] = {
     [ek_tile_state_dirt] = ek_sprite_dirt_tile,
     [ek_tile_state_ladder] = ek_sprite_ladder_tile,
+    [ek_tile_state_gold] = ek_sprite_gold_tile,
+    [ek_tile_state_shooter] = ek_sprite_dirt_tile,
+    [ek_tile_state_entrance] = ek_sprite_dirt_tile,
+    [ek_tile_state_exit] = ek_sprite_dirt_tile
 };
 
 typedef struct {

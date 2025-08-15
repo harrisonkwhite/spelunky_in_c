@@ -1,10 +1,10 @@
 #include "game.h"
 
-#define GRAVITY 0.3f
+#define GRAVITY 0.2f
 
-#define PLAYER_MOVE_SPD 2.0f
+#define PLAYER_MOVE_SPD 1.5f
 #define PLAYER_MOVE_SPD_LERP 0.2f
-#define PLAYER_JUMP_HEIGHT 4.0f
+#define PLAYER_JUMP_HEIGHT 3.0f
 #define PLAYER_CLIMB_SPD 1.0f
 #define PLAYER_ORIGIN (s_v2){0.5f, 0.5f}
 #define PLAYER_WHIP_OFFS 10.0f
@@ -254,8 +254,10 @@ static void MoveToSolidTile(s_v2* const pos, const e_cardinal_dir dir, const s_v
         pos->y += jump.y;
     }
 
+#if 0
     pos->x = roundf(pos->x);
     pos->y = roundf(pos->y);
+#endif
 }
 
 static void ProcSolidTileCollisions(s_v2* const pos, s_v2* const vel, const s_v2 collider_size, const s_v2 collider_origin, const s_tilemap* const tm) {
@@ -455,7 +457,7 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
 
             if (CheckTileCollisionWithState(&gold_tile_pos, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_gold)) {
                 STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, gold_tile_pos.y, gold_tile_pos.x)->state = ek_tile_state_empty;
-                lvl->gold_cnt++;
+                lvl->gold_cnt += GOLD_INCR;
             }
 
             //
@@ -615,8 +617,6 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
         }
     }
 
-    LOG("%f", lvl->player.pos.x);
-
     //
     // Player Death
     //
@@ -631,7 +631,16 @@ void RenderLevel(s_level* const lvl, const s_rendering_context* const rc, const 
 
     s_matrix_4x4 lvl_view_mat = IdentityMatrix4x4();
 #if NO_WORLD_GEN_DEBUG
-    TranslateMatrix4x4(&lvl_view_mat, (s_v2){(-lvl->player.pos.x + (view_size.x / 2.0f)) * CAMERA_SCALE, (-lvl->player.pos.y + (view_size.y / 2.0f)) * CAMERA_SCALE});
+
+    s_v2 view_pos = {
+        lvl->player.pos.x,
+        lvl->player.pos.y
+    };
+
+    view_pos.x = CLAMP(view_pos.x, view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
+    view_pos.y = CLAMP(view_pos.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
+
+    TranslateMatrix4x4(&lvl_view_mat, (s_v2){(-view_pos.x + view_size.x * 0.5f) * CAMERA_SCALE, (-view_pos.y + view_size.y * 0.5f) * CAMERA_SCALE});
     ScaleMatrix4x4(&lvl_view_mat, CAMERA_SCALE);
 #endif
     SetViewMatrix(rc, &lvl_view_mat);
@@ -649,46 +658,7 @@ void RenderLevel(s_level* const lvl, const s_rendering_context* const rc, const 
 
             const s_v2 pos = {tx * TILE_SIZE, ty * TILE_SIZE};
 
-            if (ts == ek_tile_state_dirt || ts == ek_tile_state_ladder) {
-                RenderSprite(rc, textures, *STATIC_ARRAY_ELEM(g_tile_state_sprs, ts), pos, (s_v2){0}, (s_v2){1.0f, 1.0f}, 0.0f, WHITE);
-                continue;
-            }
-
-            const s_rect rect = {tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE};
-
-            u_v3 col;
-
-            switch (ts) {
-                case ek_tile_state_dirt:
-                    col = BROWN.rgb;
-                    break;
-
-                case ek_tile_state_ladder:
-                    col = RED.rgb;
-                    break;
-
-                case ek_tile_state_gold:
-                    col = YELLOW.rgb;
-                    break;
-
-                case ek_tile_state_shooter:
-                    col = GRAY.rgb;
-                    break;
-
-                case ek_tile_state_entrance:
-                    col = BLUE.rgb;
-                    break;
-
-                case ek_tile_state_exit:
-                    col = MAGENTA.rgb;
-                    break;
-
-                default:
-                    assert(false && "forgetting tile type");
-                    break;
-            }
-
-            RenderRectWithOutlineAndOpaqueFill(rc, rect, col, BLACK, 1.0f);
+            RenderSprite(rc, textures, *STATIC_ARRAY_ELEM(g_tile_state_sprs, ts), pos, (s_v2){0}, (s_v2){1.0f, 1.0f}, 0.0f, WHITE);
         }
     }
 
@@ -755,9 +725,11 @@ bool RenderLevelUI(s_level* const lvl, const s_rendering_context* const rc, cons
     // Gold
     //
     char gold_str[8];
-    snprintf(gold_str, sizeof(gold_str), "GOLD: %d", lvl->gold_cnt);
+    snprintf(gold_str, sizeof(gold_str), "Gold: %d", lvl->gold_cnt);
 
-    if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(gold_str), fonts, ek_font_medodica_96, (s_v2){0}, ALIGNMENT_TOP_LEFT, WHITE, temp_mem_arena)) {
+    const s_v2 gold_str_pos = {rc->window_size.x * 0.025f, rc->window_size.y * 0.05f};
+
+    if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(gold_str), fonts, ek_font_roboto_96, gold_str_pos, ALIGNMENT_TOP_LEFT, WHITE, temp_mem_arena)) {
         return false;
     }
 
@@ -765,7 +737,7 @@ bool RenderLevelUI(s_level* const lvl, const s_rendering_context* const rc, cons
     // Death
     //
     if (lvl->hp == 0) {
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(DEATH_MSG), fonts, ek_font_medodica_128, (s_v2){rc->window_size.x / 2.0f, rc->window_size.y / 2.0f}, ALIGNMENT_CENTER, WHITE, temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("You died!"), fonts, ek_font_roboto_128, (s_v2){rc->window_size.x / 2.0f, rc->window_size.y / 2.0f}, ALIGNMENT_CENTER, WHITE, temp_mem_arena)) {
             return false;
         }
     }
@@ -774,7 +746,7 @@ bool RenderLevelUI(s_level* const lvl, const s_rendering_context* const rc, cons
     // Level Completion
     //
     if (lvl->completed) {
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("LEVEL COMPLETED"), fonts, ek_font_medodica_128, (s_v2){rc->window_size.x / 2.0f, rc->window_size.y / 2.0f}, ALIGNMENT_CENTER, WHITE, temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("LEVEL COMPLETED"), fonts, ek_font_roboto_128, (s_v2){rc->window_size.x / 2.0f, rc->window_size.y / 2.0f}, ALIGNMENT_CENTER, WHITE, temp_mem_arena)) {
             return false;
         }
     }
