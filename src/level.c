@@ -1,5 +1,8 @@
 #include "game.h"
 
+// climbing notes
+// you mark what specific tile to latch onto when pressing right and while higher than it. the moment the top of your collider is less than the tile, you are locked back up into a latch state. only latch onto tile with nothing above it.
+
 #define GRAVITY 0.2f
 
 #define PLAYER_MOVE_SPD 1.5f
@@ -239,19 +242,19 @@ static void MoveToSolidTile(s_v2* const pos, const e_cardinal_dir dir, const s_v
 
     switch (dir) {
         case ek_cardinal_dir_right:
-            jump = (s_v2){1.0f / CAMERA_SCALE, 0.0f};
+            jump = (s_v2){1.0f / g_view_scale, 0.0f};
             break;
 
         case ek_cardinal_dir_left:
-            jump = (s_v2){-1.0f / CAMERA_SCALE, 0.0f};
+            jump = (s_v2){-1.0f / g_view_scale, 0.0f};
             break;
 
         case ek_cardinal_dir_down:
-            jump = (s_v2){0.0f, 1.0f / CAMERA_SCALE};
+            jump = (s_v2){0.0f, 1.0f / g_view_scale};
             break;
 
         case ek_cardinal_dir_up:
-            jump = (s_v2){0.0f, -1.0f / CAMERA_SCALE};
+            jump = (s_v2){0.0f, -1.0f / g_view_scale};
             break;
     }
 
@@ -376,7 +379,7 @@ bool GenLevel(s_level* const lvl, const s_v2_s32 window_size, s_mem_arena* const
     //
     lvl->view_pos = lvl->player.pos;
 
-    const s_v2_s32 view_size = {window_size.x / CAMERA_SCALE, window_size.y / CAMERA_SCALE};
+    const s_v2_s32 view_size = {window_size.x / g_view_scale, window_size.y / g_view_scale};
     lvl->view_pos.x = CLAMP(lvl->view_pos.x, view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
     lvl->view_pos.y = CLAMP(lvl->view_pos.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
 
@@ -426,6 +429,18 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
             } else {
                 stuck = false;
             }*/
+
+            bool possible_latch = false;
+
+            if (IsKeyDown(&zfw_context->input_context, ek_key_code_right)) {
+                const s_rect rect = GenPlayerRect(player->pos);
+
+                int ty_min = rect.y / TILE_SIZE;
+                int ty_max = ceilf((rect.y + rect.height) / TILE_SIZE);
+
+                for (int ty = ty_min; ty < ty_max; ty++) {
+                }
+            }
 
             const bool on_ground = CheckSolidTileCollision(RectTranslated(GenPlayerRect(lvl->player.pos), (s_v2){0.0f, 1.0f}), &lvl->tilemap, false);
             const bool touching_ladder = CheckTileCollisionWithState(NULL, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_ladder);
@@ -648,23 +663,26 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
         lvl->player.pos.y
     };
 
-    const s_v2_s32 view_size = {zfw_context->window_state.size.x / CAMERA_SCALE, zfw_context->window_state.size.y / CAMERA_SCALE};
+    const s_v2_s32 view_size = {zfw_context->window_state.size.x / g_view_scale, zfw_context->window_state.size.y / g_view_scale};
     view_dest.x = CLAMP(view_dest.x, view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
     view_dest.y = CLAMP(view_dest.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
 
     const float view_lerp_factor = 0.2f;
     lvl->view_pos.x = Lerp(lvl->view_pos.x, view_dest.x, view_lerp_factor);
     lvl->view_pos.y = Lerp(lvl->view_pos.y, view_dest.y, view_lerp_factor);
+
+    lvl->view_pos.x = CLAMP(lvl->view_pos.x, view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
+    lvl->view_pos.y = CLAMP(lvl->view_pos.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
 }
 
 void RenderLevel(s_level* const lvl, const s_rendering_context* const rc, const s_texture_group* const textures) {
-    const s_v2_s32 view_size = {rc->window_size.x / CAMERA_SCALE, rc->window_size.y / CAMERA_SCALE};
+    const s_v2_s32 view_size = {rc->window_size.x / g_view_scale, rc->window_size.y / g_view_scale};
 
     s_matrix_4x4 lvl_view_mat = IdentityMatrix4x4();
 #if NO_WORLD_GEN_DEBUG
 
-    TranslateMatrix4x4(&lvl_view_mat, (s_v2){(-lvl->view_pos.x + view_size.x * 0.5f) * CAMERA_SCALE, (-lvl->view_pos.y + view_size.y * 0.5f) * CAMERA_SCALE});
-    ScaleMatrix4x4(&lvl_view_mat, CAMERA_SCALE);
+    TranslateMatrix4x4(&lvl_view_mat, (s_v2){(-lvl->view_pos.x + view_size.x * 0.5f) * g_view_scale, (-lvl->view_pos.y + view_size.y * 0.5f) * g_view_scale});
+    ScaleMatrix4x4(&lvl_view_mat, g_view_scale);
 #endif
     SetViewMatrix(rc, &lvl_view_mat);
 

@@ -19,7 +19,7 @@
 
 #define GOLD_INCR 250
 
-#define CAMERA_SCALE 4.0f
+extern float g_view_scale;
 
 typedef enum {
     ek_texture_level,
