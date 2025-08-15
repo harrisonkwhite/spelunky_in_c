@@ -13,6 +13,14 @@ bool InitGame(const s_game_init_context* const zfw_context) {
 e_game_tick_result GameTick(const s_game_tick_context* const zfw_context) {
     s_game* const game = zfw_context->dev_mem;
 
+    if (IsKeyPressed(&zfw_context->input_context, ek_key_code_r)) {
+        ZERO_OUT(game->lvl);
+
+        if (!GenLevel(&game->lvl, zfw_context->temp_mem_arena)) {
+            return false;
+        }
+    }
+
     UpdateLevel(&game->lvl, zfw_context);
 
     return ek_game_tick_result_normal;

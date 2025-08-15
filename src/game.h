@@ -16,8 +16,15 @@
 
 typedef enum {
     ek_tile_state_empty,
-    ek_tile_state_dirt
+    ek_tile_state_dirt,
+    ek_tile_state_ladder
 } e_tile_state;
+
+static bool g_tile_states_solid[] = {
+    [ek_tile_state_empty] = false,
+    [ek_tile_state_dirt] = true,
+    [ek_tile_state_ladder] = false
+};
 
 typedef struct {
     int starting_room_x;
@@ -27,6 +34,7 @@ typedef struct {
 typedef struct {
     s_v2 pos;
     s_v2 vel;
+    bool climbing;
 } s_player;
 
 typedef struct {
