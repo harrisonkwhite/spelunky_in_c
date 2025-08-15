@@ -124,6 +124,17 @@ static bool WARN_UNUSED_RESULT GenTilemap(s_tilemap* const tm, s_mem_arena* cons
         }
     }
 
+    // Add boundaries.
+    for (int ty = 0; ty < TILEMAP_HEIGHT; ty++) {
+        *STATIC_ARRAY_2D_ELEM(tm->states, ty, 0) = ek_tile_state_dirt;
+        *STATIC_ARRAY_2D_ELEM(tm->states, ty, TILEMAP_WIDTH - 1) = ek_tile_state_dirt;
+    }
+
+    for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
+        *STATIC_ARRAY_2D_ELEM(tm->states, 0, tx) = ek_tile_state_dirt;
+        *STATIC_ARRAY_2D_ELEM(tm->states, TILEMAP_HEIGHT - 1, tx) = ek_tile_state_dirt;
+    }
+
     return true;
 }
 
@@ -215,7 +226,10 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
 }
 
 void RenderLevel(s_level* const lvl, const s_rendering_context* const rc) {
+    const s_v2_s32 view_size = {rc->window_size.x / CAMERA_SCALE, rc->window_size.y / CAMERA_SCALE};
+
     s_matrix_4x4 lvl_view_mat = IdentityMatrix4x4();
+    TranslateMatrix4x4(&lvl_view_mat, (s_v2){(-lvl->player.pos.x + (view_size.x / 2.0f)) * CAMERA_SCALE, (-lvl->player.pos.y + (view_size.y / 2.0f)) * CAMERA_SCALE});
     ScaleMatrix4x4(&lvl_view_mat, CAMERA_SCALE);
     SetViewMatrix(rc, &lvl_view_mat);
 
