@@ -1,20 +1,20 @@
 cmake_minimum_required(VERSION 3.28)
-project(untitled_game C)
+project(spelunky_in_c C)
 
 set(CMAKE_C_STANDARD 11)
 
 add_subdirectory(zeta_framework)
 
-add_executable(untitled_game
+add_executable(spelunky_in_c
     src/entry.c
     src/game.c
 
     src/game.h
 )
 
-target_link_libraries(untitled_game PRIVATE zfw_core)
+target_link_libraries(spelunky_in_c PRIVATE zfw_core)
 
-set_target_properties(untitled_game PROPERTIES
+set_target_properties(spelunky_in_c PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
 )
 
@@ -25,4 +25,4 @@ add_custom_target(pack_assets ALL
     VERBATIM
 )
 
-add_dependencies(untitled_game pack_assets)
+add_dependencies(spelunky_in_c pack_assets)
