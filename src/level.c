@@ -8,6 +8,7 @@
 #define PLAYER_CLIMB_SPD 1.0f
 #define PLAYER_SIZE (s_v2_s32){TILE_SIZE - 2, TILE_SIZE - 2}
 #define PLAYER_ORIGIN (s_v2){0.5f, 0.5f}
+#define PLAYER_WHIP_OFFS 10.0f
 
 #define ARROW_SIZE (s_v2_s32){TILE_SIZE, TILE_SIZE / 2}
 #define ARROW_ORIGIN (s_v2){0.5f, 0.5f}
@@ -389,6 +390,12 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
 
             const int move_axis = IsKeyDown(&zfw_context->input_context, ek_key_code_right) - IsKeyDown(&zfw_context->input_context, ek_key_code_left);
 
+            if (move_axis == 1) {
+                player->facing_right = true;
+            } else if (move_axis == -1) {
+                player->facing_right = false;
+            }
+
             const float vel_x_dest = PLAYER_MOVE_SPD * move_axis;
             player->vel.x = Lerp(player->vel.x, vel_x_dest, PLAYER_MOVE_SPD_LERP);
 
@@ -442,6 +449,14 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
             if (CheckTileCollisionWithState(&gold_tile_pos, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_gold)) {
                 STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, gold_tile_pos.y, gold_tile_pos.x)->state = ek_tile_state_empty;
                 lvl->gold_cnt++;
+            }
+
+            //
+            // Whipping
+            //
+            if (IsKeyPressed(&zfw_context->input_context, ek_key_code_x)) {
+                const s_v2 hb_pos = {lvl->player.pos.x + (lvl->player.facing_right ? PLAYER_WHIP_OFFS : -PLAYER_WHIP_OFFS), lvl->player.pos.y};
+                SpawnHitbox(lvl, hb_pos, (s_v2){PLAYER_SIZE.x, PLAYER_SIZE.y}, (s_v2){0.5f, 0.5f}, 1, false);
             }
         }
 
@@ -551,20 +566,44 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
     }
 
     //
-    // Processing Player collisions with hitboxes
+    // Processing Player and enemy collisions with hitboxes
     //
     {
         const s_rect player_collider = GenPlayerRect(lvl->player.pos);
 
-        for (int i = 0; i < lvl->hitbox_cnt; i++) {
-            const s_hitbox* const hb = STATIC_ARRAY_ELEM(lvl->hitboxes, i);
+        s_rect enemy_colliders[ENEMY_LIMIT] = {0};
 
-            if (!hb->enemy) {
+        for (int i = 0; i < ENEMY_LIMIT; i++) {
+            const s_enemy* const enemy = STATIC_ARRAY_ELEM(lvl->enemies, i);
+
+            if (!enemy->active) {
                 continue;
             }
 
-            if (DoRectsInters(player_collider, hb->rect)) {
-                lvl->hp = MAX(lvl->hp - hb->dmg, 0);
+            *STATIC_ARRAY_ELEM(enemy_colliders, i) = GenEnemyRect(enemy->pos, enemy->type);
+        }
+
+        for (int i = 0; i < lvl->hitbox_cnt; i++) {
+            const s_hitbox* const hb = STATIC_ARRAY_ELEM(lvl->hitboxes, i);
+
+            if (hb->enemy) {
+                if (DoesPlayerExist(lvl) && DoRectsInters(player_collider, hb->rect)) {
+                    lvl->hp = MAX(lvl->hp - hb->dmg, 0);
+                }
+            } else {
+                for (int j = 0; j < ENEMY_LIMIT; j++) {
+                    s_enemy* const enemy = STATIC_ARRAY_ELEM(lvl->enemies, i);
+
+                    if (!enemy->active) {
+                        continue;
+                    }
+
+                    const s_rect enemy_collider = *STATIC_ARRAY_ELEM(enemy_colliders, j);
+
+                    if (DoRectsInters(hb->rect, enemy_collider)) {
+                        enemy->active = false;
+                    }
+                }
             }
         }
     }

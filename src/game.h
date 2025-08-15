@@ -68,6 +68,7 @@ typedef struct {
     s_v2 vel;
     bool climbing;
     bool cant_climb;
+    bool facing_right;
 } s_player;
 
 typedef struct {
@@ -102,12 +103,14 @@ typedef struct {
     bool enemy;
 } s_hitbox;
 
+#define ENEMY_LIMIT 128
+
 typedef struct {
     s_tilemap tilemap;
 
     s_player player;
 
-    s_enemy enemies[128];
+    s_enemy enemies[ENEMY_LIMIT];
 
     s_arrow arrows[16];
     int arrow_cnt;
