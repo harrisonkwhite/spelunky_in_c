@@ -3,7 +3,7 @@
 
 #include <zfwc.h>
 
-#define NO_WORLD_GEN_DEBUG 0
+#define NO_WORLD_GEN_DEBUG 1
 
 #define DEATH_MSG "YOU DIED!"
 
@@ -83,6 +83,8 @@ typedef struct {
 
     int hp;
     int gold_cnt;
+
+    bool completed;
 } s_level;
 
 typedef struct {

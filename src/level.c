@@ -315,8 +315,12 @@ static void SpawnArrow(s_level* const lvl, const s_v2 pos, const bool right) {
     }
 }
 
+static inline bool DoesPlayerExist(const s_level* const lvl) {
+    return lvl->hp > 0 && !lvl->completed;
+}
+
 void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_context) {
-    if (lvl->hp > 0) {
+    if (DoesPlayerExist(lvl)) {
         //
         // Player Movement
         //
@@ -418,6 +422,13 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
                 }
             }
         }
+
+        //
+        // End Level
+        //
+        if (CheckTileCollisionWithState(NULL, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_exit)) {
+            lvl->completed = true;
+        }
     }
 
     //
@@ -438,7 +449,7 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
                 i--;
             }
 
-            if (lvl->hp > 0 && DoRectsInters(collider, player_collider)) {
+            if (DoesPlayerExist(lvl) && DoRectsInters(collider, player_collider)) {
                 lvl->hp = 0; // TEMP
             }
         }
@@ -515,7 +526,7 @@ void RenderLevel(s_level* const lvl, const s_rendering_context* const rc) {
     //
     // Player
     //
-    if (lvl->hp > 0) {
+    if (DoesPlayerExist(lvl)) {
         const s_rect rect = GenPlayerRect(lvl->player.pos);
         RenderRectWithOutlineAndOpaqueFill(rc, rect, WHITE.rgb, BLACK, 1.0f);
     }
@@ -554,6 +565,15 @@ bool RenderLevelUI(s_level* const lvl, const s_rendering_context* const rc, cons
     //
     if (lvl->hp == 0) {
         if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(DEATH_MSG), fonts, ek_font_medodica_128, (s_v2){rc->window_size.x / 2.0f, rc->window_size.y / 2.0f}, ALIGNMENT_CENTER, WHITE, temp_mem_arena)) {
+            return false;
+        }
+    }
+
+    //
+    // Level Completion
+    //
+    if (lvl->completed) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("LEVEL COMPLETED"), fonts, ek_font_medodica_128, (s_v2){rc->window_size.x / 2.0f, rc->window_size.y / 2.0f}, ALIGNMENT_CENTER, WHITE, temp_mem_arena)) {
             return false;
         }
     }
