@@ -204,9 +204,11 @@ static bool CheckTileCollisionWithState(s_v2_s32* const tp, const s_rect rect, c
     return false;
 }
 
-static float DistToSolidTile(const s_rect rect_base, const s_tilemap* const tm, const e_cardinal_dir dir, const float max_dist) {
-    assert(!CheckSolidTileCollision(rect_base, tm));
+static s_rect GenCollider(const s_v2 pos, const s_v2 size, const s_v2 origin) {
+    return (s_rect){pos.x - (size.x * origin.x), pos.y - (size.y * origin.y), size.x, size.y};
+}
 
+static void MoveToSolidTile(s_v2* const pos, const e_cardinal_dir dir, const s_v2 collider_size, const s_v2 collider_origin, const s_tilemap* const tm) {
     s_v2 jump;
 
     switch (dir) {
@@ -227,46 +229,24 @@ static float DistToSolidTile(const s_rect rect_base, const s_tilemap* const tm, 
             break;
     }
 
-    s_v2 accum = {0};
-
-    float dist = 0.0f;
-
-    while (dist < max_dist && !CheckSolidTileCollision(RectTranslated(rect_base, accum), tm)) {
-        accum = V2Sum(jump, accum);
-        dist += 1.0f;
+    while (!CheckSolidTileCollision(GenCollider((s_v2){pos->x + jump.x, pos->y + jump.y}, collider_size, collider_origin), tm)) {
+        pos->x += jump.x;
+        pos->y += jump.y;
     }
-
-    return dist - 1.0f;
-}
-
-static s_rect GenCollider(const s_v2 pos, const s_v2 size, const s_v2 origin) {
-    return (s_rect){pos.x - (size.x * origin.x), pos.y - (size.y * origin.y), size.x, size.y};
 }
 
 static void ProcSolidTileCollisions(s_v2* const pos, s_v2* const vel, const s_v2 collider_size, const s_v2 collider_origin, const s_tilemap* const tm) {
     const s_rect rect_hor = GenCollider((s_v2){pos->x + vel->x, pos->y}, collider_size, collider_origin);
 
     if (CheckSolidTileCollision(rect_hor, tm)) {
-        pos->x += DistToSolidTile(
-            GenCollider(*pos, *vel, collider_origin),
-            tm,
-            vel->x >= 0.0f ? ek_cardinal_dir_right : ek_cardinal_dir_left,
-            vel->x >= 0.0f ? vel->x : -vel->x
-        ) * (vel->x >= 0.0f ? 1.0f : -1.0f); // fuck this is bad
-
+        MoveToSolidTile(pos, vel->x >= 0.0f ? ek_cardinal_dir_right : ek_cardinal_dir_left, collider_size, collider_origin, tm);
         vel->x = 0.0f;
     }
 
     const s_rect rect_vert = GenCollider((s_v2){pos->x, pos->y + vel->y}, collider_size, collider_origin);
 
     if (CheckSolidTileCollision(rect_vert, tm)) {
-        /*pos->y += DistToSolidTile(
-            GenCollider(*pos, *vel, collider_origin),
-            tm,
-            vel->y >= 0.0f ? ek_cardinal_dir_down : ek_cardinal_dir_up,
-            vel->y >= 0.0f ? vel->y : -vel->y
-        ) * (vel->y >= 0.0f ? 1.0f : -1.0f); // fuck this is bad*/
-
+        MoveToSolidTile(pos, vel->y >= 0.0f ? ek_cardinal_dir_down : ek_cardinal_dir_up, collider_size, collider_origin, tm);
         vel->y = 0.0f;
     }
 
