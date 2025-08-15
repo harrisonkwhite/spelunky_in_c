@@ -20,6 +20,7 @@ typedef enum {
 } e_tile_state;
 
 typedef struct {
+    int starting_room_x;
     e_tile_state states[TILEMAP_HEIGHT][TILEMAP_WIDTH];
 } s_tilemap;
 
@@ -42,7 +43,8 @@ e_game_tick_result GameTick(const s_game_tick_context* const zfw_context);
 bool RenderGame(const s_game_render_context* const zfw_context);
 void CleanGame(void* const dev_mem);
 
-void UpdateLevel(s_level* const lvl, s_game_tick_context* const zfw_context);
+bool WARN_UNUSED_RESULT GenLevel(s_level* const lvl, s_mem_arena* const temp_mem_arena);
+void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_context);
 void RenderLevel(s_level* const lvl, const s_rendering_context* const rc);
 
 #endif
