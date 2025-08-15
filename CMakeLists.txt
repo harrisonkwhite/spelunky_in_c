@@ -8,6 +8,7 @@ add_subdirectory(zeta_framework)
 add_executable(spelunky_in_c
     src/entry.c
     src/game.c
+    src/level.c
 
     src/game.h
 )

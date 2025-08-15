@@ -148,19 +148,7 @@ bool RenderGame(const s_game_render_context* const zfw_context) {
     const s_rendering_context* const rc = &zfw_context->rendering_context;
 
     Clear(rc, PURPLE);
-
-    for (int ty = 0; ty < TILEMAP_HEIGHT; ty++) {
-        for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
-            const e_tile_state ts = *STATIC_ARRAY_2D_ELEM(game->lvl.tilemap.states, ty, tx);
-
-            if (ts == ek_tile_state_empty) {
-                continue;
-            }
-
-            const s_rect rect = {tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE};
-            RenderRectWithOutlineAndOpaqueFill(rc, rect, WHITE.rgb, BLACK, 1.0f);
-        }
-    }
+    RenderLevel(&game->lvl, &zfw_context->rendering_context);
 
     return true;
 }
