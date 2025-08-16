@@ -6,6 +6,7 @@
 // Check tiles to the right. If the topmost tile has a 
 
 #define POST_START_WAIT_TIME_MAX 30
+#define LEAVING_WAIT_TIME_MAX 30
 
 #define GRAVITY 0.4f
 
@@ -404,6 +405,7 @@ bool GenLevel(s_level* const lvl, const s_v2_s32 window_size, s_mem_arena* const
                         lvl->player.pos = tile_center_in_lvl;
                     } else if (tex_px_r == 255 && tex_px_g == 0 && tex_px_b == 255 && tex_px_a == 255) {
                         STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_exit;
+                        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->door_frame_time = DOOR_FRAME_CNT * DOOR_FRAME_INTERVAL;
                     } else if (tex_px_r == 0 && tex_px_g == 255 && tex_px_b == 255 && tex_px_a == 255) {
                         SpawnEnemy(lvl, tile_center_in_lvl, ek_enemy_type_snake);
                     } else {
@@ -464,7 +466,7 @@ static void SpawnArrow(s_level* const lvl, const s_v2 pos, const bool right) {
 }
 
 static inline bool DoesPlayerExist(const s_level* const lvl) {
-    return lvl->started && lvl->post_start_wait_time == POST_START_WAIT_TIME_MAX && lvl->hp > 0;
+    return lvl->started && lvl->post_start_wait_time == POST_START_WAIT_TIME_MAX && !lvl->leaving && lvl->hp > 0;
 }
 
 e_level_update_end_result UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_context) {
@@ -490,6 +492,30 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, const s_game_tick_cont
                     break; // only one i guess
                 }
             }
+        }
+    }
+
+    if (lvl->leaving) {
+        if (lvl->leaving_wait_time < LEAVING_WAIT_TIME_MAX) {
+            lvl->leaving_wait_time++;
+
+            for (int ty = 0; ty < TILEMAP_HEIGHT; ty++) {
+                for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
+                    s_tile* const t = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, ty, tx);
+
+                    if (t->state != ek_tile_state_exit) {
+                        continue;
+                    }
+
+                    if (t->door_frame_time > 0) {
+                        t->door_frame_time--;
+                    }
+
+                    break; // only one i guess
+                }
+            }
+        } else {
+            return ek_level_update_end_result_next;
         }
     }
 
@@ -678,7 +704,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, const s_game_tick_cont
         //
         if (IsKeyPressed(&zfw_context->input_context, ek_key_code_up)) {
             if (CheckTileCollisionWithState(NULL, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_exit)) {
-                return ek_level_update_end_result_next;
+                lvl->leaving = true;
             }
         }
     }

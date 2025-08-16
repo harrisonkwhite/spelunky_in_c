@@ -234,6 +234,9 @@ typedef struct {
     bool started;
     int post_start_wait_time;
 
+    bool leaving;
+    int leaving_wait_time;
+
     int index;
 
     s_tilemap tilemap;
