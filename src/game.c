@@ -37,6 +37,10 @@ bool InitGame(const s_game_init_context* const zfw_context) {
         return false;
     }
 
+    game->run_state = (s_game_run_state){
+        .lvl_num = 1
+    };
+
     return true;
 }
 
@@ -58,18 +62,11 @@ e_game_tick_result GameTick(const s_game_tick_context* const zfw_context) {
         game->lvl.started = true;
     }
 
-    if (IsKeyPressed(&zfw_context->input_context, ek_key_code_r)) {
-        ZERO_OUT(game->lvl);
+    e_level_update_end_result res = UpdateLevel(&game->lvl, &game->run_state, zfw_context);
 
-        if (!GenLevel(&game->lvl, zfw_context->window_state.size, zfw_context->temp_mem_arena)) {
-            return ek_game_tick_result_error;
-        }
-
-        game->lvl.started = true;
-        game->lvl.index = 0;
+    if (IsKeyPressed(&zfw_context->input_context, ek_key_code_r)) { // TODO: Remove!
+        res = ek_level_update_end_result_restart;
     }
-
-    const e_level_update_end_result res = UpdateLevel(&game->lvl, zfw_context);
 
     switch (res) {
         case ek_level_update_end_result_normal:
@@ -84,14 +81,15 @@ e_game_tick_result GameTick(const s_game_tick_context* const zfw_context) {
                 }
 
                 game->title = true;
+                game->run_state = (s_game_run_state){
+                    .lvl_num = 1
+                };
             }
 
             break;
 
         case ek_level_update_end_result_next:
             {
-                const int lvl_index_old = game->lvl.index;
-
                 ZERO_OUT(game->lvl);
 
                 if (!GenLevel(&game->lvl, zfw_context->window_state.size, zfw_context->temp_mem_arena)) {
@@ -99,7 +97,7 @@ e_game_tick_result GameTick(const s_game_tick_context* const zfw_context) {
                 }
 
                 game->lvl.started = true;
-                game->lvl.index = lvl_index_old + 1;
+                game->run_state.lvl_num++;
             }
 
             break;
@@ -123,7 +121,7 @@ bool RenderGame(const s_game_render_context* const zfw_context) {
     SetSurfaceShaderProg(rc, &rc->basis->builtin_shader_progs, ek_builtin_shader_prog_surface_default);
     RenderSurface(rc, &game->lvl_surf, (s_v2){0}, (s_v2){g_view_scale, g_view_scale}, false);
 
-    if (!RenderLevelUI(&game->lvl, &zfw_context->rendering_context, &game->fonts, zfw_context->temp_mem_arena)) {
+    if (!RenderLevelUI(&game->lvl, &game->run_state, &zfw_context->rendering_context, &game->fonts, zfw_context->temp_mem_arena)) {
         return false;
     }
 
@@ -139,11 +137,11 @@ bool RenderGame(const s_game_render_context* const zfw_context) {
         RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y - bg_rect_outline_size, bg_rect.width, bg_rect.height + (bg_rect_outline_size * 2.0f)}, WHITE);
         RenderRect(rc, bg_rect, BLACK);
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("SPELUNKY IN C"), &game->fonts, ek_font_roboto_96, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) - 48.0f}, ALIGNMENT_CENTER, WHITE, zfw_context->temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("SPELUNKY IN C"), &game->fonts, ek_font_pixel_very_large, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) - 48.0f}, ALIGNMENT_CENTER, WHITE, zfw_context->temp_mem_arena)) {
             return false;
         }
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("PRESS [X] TO START"), &game->fonts, ek_font_roboto_48, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 48.0f}, ALIGNMENT_CENTER, WHITE, zfw_context->temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("PRESS [X] TO START"), &game->fonts, ek_font_pixel_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 48.0f}, ALIGNMENT_CENTER, WHITE, zfw_context->temp_mem_arena)) {
             return false;
         }
     }

@@ -105,17 +105,19 @@ static s_sprite_info g_sprite_infos[] = {
 };
 
 typedef enum {
-    ek_font_roboto_32,
-    ek_font_roboto_48,
-    ek_font_roboto_64,
-    ek_font_roboto_96
+    ek_font_pixel_very_small,
+    ek_font_pixel_small,
+    ek_font_pixel_med,
+    ek_font_pixel_large,
+    ek_font_pixel_very_large
 } e_font;
 
 static const s_char_array_view g_font_file_paths[] = {
-    [ek_font_roboto_32] = ARRAY_FROM_STATIC("assets/fonts/medodica_32"),
-    [ek_font_roboto_48] = ARRAY_FROM_STATIC("assets/fonts/medodica_48"),
-    [ek_font_roboto_64] = ARRAY_FROM_STATIC("assets/fonts/medodica_64"),
-    [ek_font_roboto_96] = ARRAY_FROM_STATIC("assets/fonts/medodica_96")
+    [ek_font_pixel_very_small] = ARRAY_FROM_STATIC("assets/fonts/very_small"),
+    [ek_font_pixel_small] = ARRAY_FROM_STATIC("assets/fonts/small"),
+    [ek_font_pixel_med] = ARRAY_FROM_STATIC("assets/fonts/med"),
+    [ek_font_pixel_large] = ARRAY_FROM_STATIC("assets/fonts/large"),
+    [ek_font_pixel_very_large] = ARRAY_FROM_STATIC("assets/fonts/very_large")
 };
 
 typedef enum {
@@ -237,8 +239,6 @@ typedef struct {
     bool leaving;
     int leaving_wait_time;
 
-    int index;
-
     s_tilemap tilemap;
 
     s_player player;
@@ -254,10 +254,14 @@ typedef struct {
     int hitbox_cnt;
 
     int hp;
-    int gold_cnt;
 
     s_v2 view_pos;
 } s_level;
+
+typedef struct {
+    int lvl_num;
+    int gold_cnt;
+} s_game_run_state;
 
 typedef struct {
     s_texture_group textures;
@@ -265,6 +269,7 @@ typedef struct {
     s_surface lvl_surf;
     bool title;
     s_level lvl;
+    s_game_run_state run_state;
 } s_game;
 
 bool InitGame(const s_game_init_context* const zfw_context);
@@ -273,9 +278,9 @@ bool RenderGame(const s_game_render_context* const zfw_context);
 void CleanGame(void* const dev_mem);
 
 bool WARN_UNUSED_RESULT GenLevel(s_level* const lvl, const s_v2_s32 window_size, s_mem_arena* const temp_mem_arena);
-e_level_update_end_result UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_context);
-void RenderLevel(s_level* const lvl, const s_rendering_context* const rc, const s_texture_group* const textures);
-bool RenderLevelUI(s_level* const lvl, const s_rendering_context* const rc, const s_font_group* const fonts, s_mem_arena* const temp_mem_arena);
+e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* const run_state, const s_game_tick_context* const zfw_context);
+void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, const s_texture_group* const textures);
+bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_state, const s_rendering_context* const rc, const s_font_group* const fonts, s_mem_arena* const temp_mem_arena);
 
 static inline void RenderSprite(const s_rendering_context* const rendering_context, const s_texture_group* const textures, const e_sprite spr, const s_v2 pos, const s_v2 origin, const s_v2 scale, const t_r32 rot, const u_v4 blend) {
     const s_sprite_info* const spr_info = STATIC_ARRAY_ELEM(g_sprite_infos, spr);
