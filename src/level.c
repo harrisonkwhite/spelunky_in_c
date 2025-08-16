@@ -26,7 +26,7 @@
 #define PLAYER_MOVE_SPD 1.5f
 #define PLAYER_MOVE_SPD_LERP 0.3f
 #define PLAYER_JUMP_HEIGHT 3.0f
-#define PLAYER_CLIMB_SPD 0.75f
+#define PLAYER_CLIMB_SPD 1.0f
 #define PLAYER_ORIGIN (s_v2){0.5f, 0.5f}
 #define PLAYER_WHIP_OFFS 5.0f
 #define PLAYER_WHIP_BREAK_TIME 5
@@ -44,11 +44,13 @@
 #define DOOR_FRAME_CNT 4
 
 #define ITEM_DROP_ORIGIN (s_v2){0.5f, 0.5f}
-#define ITEM_DROP_PICKUP_MAG 1.0f
+#define ITEM_DROP_PICKUP_MAG 0.5f
 
 #define DEATH_FADE_IN_LERP 0.4f
 
 #define GENERAL_UI_FADE_IN_LERP 0.4f
+
+#define GOLD_CNT_DISPLAY_ACCUM 10
 
 static void Shake(s_level* const lvl, const float amount) {
     lvl->view_shake = MAX(lvl->view_shake, amount);
@@ -360,7 +362,7 @@ static void SpawnEnemy(s_level* const lvl, const s_v2 pos, const e_enemy_type en
     }
 }
 
-static void SpawnParticle(s_level* const lvl, const s_v2 pos, const s_v2 vel, const float rot) {
+static s_particle* SpawnParticle(s_level* const lvl, const s_v2 pos, const s_v2 vel, const float rot) {
     int pt_index = -1;
 
     for (int i = 0; i < STATIC_ARRAY_LEN(lvl->particles); i++) {
@@ -374,7 +376,7 @@ static void SpawnParticle(s_level* const lvl, const s_v2 pos, const s_v2 vel, co
 
     if (pt_index == -1) {
         LOG_WARNING("out of particle space");
-        return;
+        return NULL;
     }
 
     s_particle* const pt = STATIC_ARRAY_ELEM(lvl->particles, pt_index);
@@ -383,9 +385,12 @@ static void SpawnParticle(s_level* const lvl, const s_v2 pos, const s_v2 vel, co
         .pos = pos,
         .vel = vel,
         .rot = rot,
-        .alpha = 1.0f,
+        .blend = WHITE,
+        .scale = V2_ONE,
         .active = true
     };
+
+    return pt;
 }
 
 static void SpawnItemDrop(s_level* const lvl, const s_v2 pos, const s_v2 vel, const e_item_type type) {
@@ -454,7 +459,7 @@ static s_rect GenArrowRect(const s_v2 arrow_pos) {
     return (s_rect){arrow_pos.x - (ARROW_SIZE.x * ARROW_ORIGIN.x), arrow_pos.y - (ARROW_SIZE.y * ARROW_ORIGIN.y), ARROW_SIZE.x, ARROW_SIZE.y};
 }
 
-bool GenLevel(s_level* const lvl, const s_v2_s32 window_size, s_mem_arena* const temp_mem_arena) {
+bool GenLevel(s_level* const lvl, const s_v2_s32 window_size, const s_game_run_state* const run_state, s_mem_arena* const temp_mem_arena) {
     assert(IS_ZERO(*lvl));
 
     s_tilemap* const tm = &lvl->tilemap;
@@ -549,6 +554,7 @@ bool GenLevel(s_level* const lvl, const s_v2_s32 window_size, s_mem_arena* const
         STATIC_ARRAY_2D_ELEM(tm->tiles, TILEMAP_HEIGHT - 1, tx)->state = ek_tile_state_dirt;
     }
 
+#if 0
     // Add random rock items.
     for (int ty = 1; ty < TILEMAP_HEIGHT; ty++) {
         for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
@@ -563,6 +569,7 @@ bool GenLevel(s_level* const lvl, const s_v2_s32 window_size, s_mem_arena* const
             }
         }
     }
+#endif
 
     //
     const s_v2_s32 view_size = {window_size.x / VIEW_SCALE, window_size.y / VIEW_SCALE};
@@ -587,6 +594,9 @@ bool GenLevel(s_level* const lvl, const s_v2_s32 window_size, s_mem_arena* const
             MoveToSolidTile(&enemy->pos, ek_cardinal_dir_down, -1.0f, (s_v2){SnakeSize().x, SnakeSize().y}, SNAKE_ORIGIN, &lvl->tilemap);
         }
     }
+
+    //
+    lvl->gold_display_cnt = run_state->gold_cnt;
 
     return true;
 }
@@ -640,6 +650,26 @@ static void TriggerHorShooters(s_level* const lvl, const int tx_center, const in
         if (*STATIC_ARRAY_ELEM(g_tile_states_solid, tile->state)) {
             break;
         }
+    }
+}
+
+static void SpawnBloodParticles(s_level* const lvl, const s_v2 pos) {
+    const int pt_cnt = RandRangeS32Incl(5, 7);
+
+    for (int i = 0; i < pt_cnt; i++) {
+        const float dir = (((float)i / pt_cnt) * TAU) + RandRange(-PI * 0.2f, PI * 0.2f);
+        const s_v2 vel = LenDir(RandRange(2.5f, 4.0f), dir);
+
+        s_particle* const pt = SpawnParticle(lvl, pos, vel, TAU * RandPerc());
+
+        if (!pt) {
+            return;
+        }
+
+        pt->blend = RED;
+
+        const float scale = RandRange(1.0f, 2.0f);
+        pt->scale = (s_v2){scale, scale};
     }
 }
 
@@ -817,17 +847,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
             if (!lvl->player.climbing && (on_ground || lvl->player.latching)) {
                 if (IsKeyPressed(&zfw_context->input_context, ek_key_code_up)) {
                     lvl->player.vel.y = -PLAYER_JUMP_HEIGHT;
-
-                    if (lvl->player.latching) {
-                        const int pt_cnt = RandRangeS32Incl(3, 4);
-
-                        for (int i = 0; i < pt_cnt; i++) {
-                            const s_v2 vel = LenDir(RandRange(2.0f, 4.0f), (-PI / 2.0f) + RandRange(-PI / 4.0f, PI / 4.0f));
-                            SpawnParticle(lvl, lvl->player.pos, vel, TAU * RandPerc());
-                        }
-
-                        lvl->player.latching = false;
-                    }
+                    lvl->player.latching = false;
                 }
             }
 
@@ -855,10 +875,19 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
                 }
             }
 
-            // Check for gold!
+            //@gold_particle
             s_v2_s32 gold_tile_pos = {0};
 
             if (CheckTileCollisionWithState(&gold_tile_pos, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_gold)) {
+                const int pt_cnt = RandRangeS32Incl(3, 4);
+
+                for (int i = 0; i < pt_cnt; i++) {
+                    const s_v2 vel = LenDir(RandRange(3.0f, 6.0f), RandPerc() * TAU);
+                    s_particle* const pt = SpawnParticle(lvl, (s_v2){(gold_tile_pos.x + 0.5f) * TILE_SIZE, (gold_tile_pos.y + 0.75f) * TILE_SIZE}, vel, TAU * RandPerc());
+                    pt->blend = YELLOW;
+                }
+
+                Shake(lvl, 0.5f);
                 STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, gold_tile_pos.y, gold_tile_pos.x)->state = ek_tile_state_empty;
                 run_state->gold_cnt += GOLD_INCR;
             }
@@ -1040,17 +1069,24 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
 
         for (int i = 0; i < lvl->arrow_cnt; i++) {
             s_arrow* const arrow = STATIC_ARRAY_ELEM(lvl->arrows, i);
+
+            s_rect colliders[2];
+
+            *STATIC_ARRAY_ELEM(colliders, 0) = GenArrowRect(arrow->pos);
+
             arrow->pos.x += ARROW_SPD * (arrow->right ? 1.0f : -1.0f);
 
-            const s_rect collider = GenArrowRect(arrow->pos);
+            *STATIC_ARRAY_ELEM(colliders, 1) = GenArrowRect(arrow->pos);
 
-            if (CheckSolidTileCollision(collider, 0.0f, &lvl->tilemap, true, true)) {
+            const s_rect collider_for_checking = GenSpanningRect((s_rect_array_view)ARRAY_FROM_STATIC(colliders));
+
+            if (CheckSolidTileCollision(collider_for_checking, 0.0f, &lvl->tilemap, true, true)) {
                 *arrow = *STATIC_ARRAY_ELEM(lvl->arrows, lvl->arrow_cnt - 1);
                 lvl->arrow_cnt--;
                 i--;
             }
 
-            SpawnHitbox(lvl, arrow->pos, (s_v2){ARROW_SIZE.x, ARROW_SIZE.y}, ARROW_ORIGIN, 1, true);
+            SpawnHitbox(lvl, RectPos(collider_for_checking), RectSize(collider_for_checking), (s_v2){0}, 1, true);
         }
     }
 
@@ -1090,15 +1126,8 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
                     const s_rect enemy_collider = *STATIC_ARRAY_ELEM(enemy_colliders, j);
 
                     if (DoRectsInters(hb->rect, enemy_collider)) {
-                        const int pt_cnt = RandRangeS32Incl(3, 4);
-
-                        for (int i = 0; i < pt_cnt; i++) {
-                            const s_v2 vel = LenDir(RandRange(3.0f, 6.0f), RandPerc() * TAU);
-                            SpawnParticle(lvl, enemy->pos, vel, TAU * RandPerc());
-                        }
-
                         Shake(lvl, 2.0f);
-
+                        SpawnBloodParticles(lvl, enemy->pos);
                         enemy->active = false;
                     }
                 }
@@ -1113,13 +1142,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
 
     if (lvl->hp == 0) {
         if (player_hp_old > 0) {
-            const int pt_cnt = RandRangeS32Incl(5, 6);
-
-            for (int i = 0; i < pt_cnt; i++) {
-                const s_v2 vel = LenDir(RandRange(3.0f, 6.0f), RandPerc() * TAU);
-                SpawnParticle(lvl, lvl->player.pos, vel, RandPerc() * TAU);
-            }
-
+            SpawnBloodParticles(lvl, lvl->player.pos);
             Shake(lvl, 3.0f);
         }
 
@@ -1141,12 +1164,13 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
         }
 
         pt->vel = V2Scaled(pt->vel, 0.8f);
+
         pt->pos = V2Sum(pt->pos, pt->vel);
 
         if (Mag(pt->vel) < 0.01f) {
-            pt->alpha *= 0.4f;
+            pt->blend.a *= 0.7f;
 
-            if (pt->alpha < 0.01f) {
+            if (pt->blend.a < 0.01f) {
                 pt->active = false;
             }
         }
@@ -1161,21 +1185,26 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
     };
 
     const s_v2_s32 view_size = {zfw_context->window_state.size.x / VIEW_SCALE, zfw_context->window_state.size.y / VIEW_SCALE};
-#if 0
     view_dest.x = CLAMP(view_dest.x, view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
     view_dest.y = CLAMP(view_dest.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
-#endif
 
     const float view_lerp_factor = 0.3f;
     lvl->view_pos_no_shake.x = Lerp(lvl->view_pos_no_shake.x, view_dest.x, view_lerp_factor);
     lvl->view_pos_no_shake.y = Lerp(lvl->view_pos_no_shake.y, view_dest.y, view_lerp_factor);
 
-#if 0
     lvl->view_pos_no_shake.x = CLAMP(lvl->view_pos_no_shake.x, view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
     lvl->view_pos_no_shake.y = CLAMP(lvl->view_pos_no_shake.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
-#endif
 
     lvl->view_shake *= 0.8f;
+
+    //
+    // money yueah wokokrjhakj
+    //
+    assert(lvl->gold_display_cnt <= run_state->gold_cnt);
+
+    if (lvl->gold_display_cnt < run_state->gold_cnt) {
+        lvl->gold_display_cnt += MIN(GOLD_CNT_DISPLAY_ACCUM, run_state->gold_cnt - lvl->gold_display_cnt);
+    }
 
     //
     // Interactp opopoipoio;
@@ -1251,9 +1280,11 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
 
         e_sprite spr = ek_sprite_player;
 
+#if 0
         if (lvl->player.latching) {
             spr = lvl->player.facing_right ? ek_sprite_player_latch_onto_right : ek_sprite_player_latch_onto_left;
         }
+#endif
 
         RenderSprite(rc, textures, spr, lvl->player.pos, PLAYER_ORIGIN, (s_v2){1.0f, 1.0f}, 0.0f, WHITE);
 
@@ -1351,9 +1382,7 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
             continue;
         }
 
-        const s_v2 size = {2.0f, 2.0f};
-        const s_rect rect = {pt->pos.x - size.x, pt->pos.y - size.y, size.x, size.y};
-        RenderTexture(rc, &rc->basis->builtin_textures, ek_builtin_texture_pixel, (s_rect_s32){0}, pt->pos, (s_v2){0.5f, 0.5f}, V2_ONE, pt->rot, (u_v4){WHITE.rgb, pt->alpha});
+        RenderTexture(rc, &rc->basis->builtin_textures, ek_builtin_texture_pixel, (s_rect_s32){0}, pt->pos, (s_v2){0.5f, 0.5f}, pt->scale, pt->rot, pt->blend);
     }
 
     //
@@ -1395,11 +1424,13 @@ bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_s
         RenderRect(rc, bg_rect, (u_v4){BLACK.rgb, BG_ALPHA * lvl->general_ui_alpha});
 
         char gold_str[16];
-        snprintf(gold_str, sizeof(gold_str), "$%d", run_state->gold_cnt);
+        snprintf(gold_str, sizeof(gold_str), "$%d", lvl->gold_display_cnt);
 
-        const s_v2 gold_str_pos = {26.0f, rc->window_size.y - 12.0f};
+        //const s_v2 gold_str_pos = {26.0f, rc->window_size.y - 12.0f};
+        s_v2 gold_str_pos = RectCenter(bg_rect);
+        gold_str_pos.y -= 6.0f;
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(gold_str), fonts, ek_font_pixel_med, gold_str_pos, ALIGNMENT_BOTTOM_LEFT, (u_v4){WHITE.rgb, lvl->general_ui_alpha}, temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(gold_str), fonts, ek_font_pixel_med, gold_str_pos, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, lvl->general_ui_alpha}, temp_mem_arena)) {
             return false;
         }
     }
@@ -1408,7 +1439,7 @@ bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_s
     // Level
     //
     if (DoesPlayerExist(lvl)) {
-        const s_v2 bg_rect_size = {240.0f, 96.0f};
+        const s_v2 bg_rect_size = {280.0f, 96.0f};
         const s_rect bg_rect = {
             rc->window_size.x - bg_rect_size.x,
             rc->window_size.y - bg_rect_size.y,
@@ -1425,9 +1456,11 @@ bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_s
         char lvl_str[16];
         snprintf(lvl_str, sizeof(lvl_str), "LVL %d", run_state->lvl_num);
 
-        const s_v2 lvl_str_pos = {rc->window_size.x - 26.0f, rc->window_size.y - 12.0f};
+        //const s_v2 lvl_str_pos = {rc->window_size.x - 16.0f, rc->window_size.y - 8.0f};
+        s_v2 lvl_str_pos = RectCenter(bg_rect);
+        lvl_str_pos.y -= 6.0f;
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(lvl_str), fonts, ek_font_pixel_med, lvl_str_pos, ALIGNMENT_BOTTOM_RIGHT, (u_v4){WHITE.rgb, lvl->general_ui_alpha}, temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(lvl_str), fonts, ek_font_pixel_med, lvl_str_pos, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, lvl->general_ui_alpha}, temp_mem_arena)) {
             return false;
         }
     }
@@ -1436,7 +1469,7 @@ bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_s
     // Interact
     //
     if (lvl->interact_popup_alpha >= 0.001f) {
-        const s_v2 bg_rect_size = {320.0f, 96.0f};
+        const s_v2 bg_rect_size = {360.0f, 96.0f};
         const s_rect bg_rect = {
             (rc->window_size.x - bg_rect_size.x) / 2.0f,
             rc->window_size.y - bg_rect_size.y,
@@ -1457,17 +1490,19 @@ bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_s
 
         switch (lvl->interact_popup_type_cache) {
             case ek_interact_popup_type_equip:
-                snprintf(interact_str, sizeof(interact_str), "[Z] Equip");
+                snprintf(interact_str, sizeof(interact_str), "[Z] EQUIP");
                 break;
 
             case ek_interact_popup_type_enter:
-                snprintf(interact_str, sizeof(interact_str), "[Z] Enter");
+                snprintf(interact_str, sizeof(interact_str), "[Z] ENTER");
                 break;
         }
 
-        const s_v2 interact_str_pos = {rc->window_size.x / 2.0f, rc->window_size.y - 12.0f};
+        //const s_v2 interact_str_pos = {rc->window_size.x / 2.0f, rc->window_size.y - 12.0f};
+        s_v2 interact_str_pos = RectCenter(bg_rect);
+        interact_str_pos.y -= 6.0f;
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(interact_str), fonts, ek_font_pixel_med, interact_str_pos, ALIGNMENT_BOTTOM_CENTER, (u_v4){WHITE.rgb, lvl->general_ui_alpha * lvl->interact_popup_alpha}, temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(interact_str), fonts, ek_font_pixel_med, interact_str_pos, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, lvl->general_ui_alpha * lvl->interact_popup_alpha}, temp_mem_arena)) {
             return false;
         }
     }

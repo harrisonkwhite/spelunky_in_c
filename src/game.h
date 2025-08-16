@@ -3,7 +3,7 @@
 
 #include <zfwc.h>
 
-#define SHOW_DEBUG_HITBOXES 0
+#define SHOW_DEBUG_HITBOXES 1
 
 #define HP_LIMIT 3
 
@@ -300,8 +300,9 @@ typedef struct {
     bool active;
     s_v2 pos;
     s_v2 vel;
-    float alpha;
     float rot;
+    u_v4 blend;
+    s_v2 scale;
 } s_particle;
 
 #define ENEMY_LIMIT 128
@@ -362,6 +363,8 @@ typedef struct {
     e_interact_popup_type interact_popup_type;
     e_interact_popup_type interact_popup_type_cache;
     float interact_popup_alpha;
+
+    int gold_display_cnt;
 } s_level;
 
 typedef struct {
@@ -394,7 +397,7 @@ e_game_tick_result GameTick(const s_game_tick_context* const zfw_context);
 bool RenderGame(const s_game_render_context* const zfw_context);
 void CleanGame(void* const dev_mem);
 
-bool WARN_UNUSED_RESULT GenLevel(s_level* const lvl, const s_v2_s32 window_size, s_mem_arena* const temp_mem_arena);
+bool WARN_UNUSED_RESULT GenLevel(s_level* const lvl, const s_v2_s32 window_size, const s_game_run_state* const run_state, s_mem_arena* const temp_mem_arena);
 e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* const run_state, const s_game_tick_context* const zfw_context);
 void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, const s_texture_group* const textures);
 bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_state, const s_rendering_context* const rc, const s_font_group* const fonts, s_mem_arena* const temp_mem_arena);

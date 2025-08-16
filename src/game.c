@@ -25,7 +25,7 @@ bool InitGame(const s_game_init_context* const zfw_context) {
     game->title = true;
     game->title_alpha = 1.0f;
 
-    if (!GenLevel(&game->lvl, zfw_context->window_state.size, zfw_context->temp_mem_arena)) {
+    if (!GenLevel(&game->lvl, zfw_context->window_state.size, &game->run_state, zfw_context->temp_mem_arena)) {
         return false;
     }
 
@@ -86,10 +86,6 @@ e_game_tick_result GameTick(const s_game_tick_context* const zfw_context) {
                 case ek_fade_restart:
                     ZERO_OUT(game->lvl);
 
-                    if (!GenLevel(&game->lvl, zfw_context->window_state.size, zfw_context->temp_mem_arena)) {
-                        return ek_game_tick_result_error;
-                    }
-
                     game->title = true;
                     game->title_alpha = 1.0f;
                     game->title_flicker = false;
@@ -98,17 +94,22 @@ e_game_tick_result GameTick(const s_game_tick_context* const zfw_context) {
                         .lvl_num = 1
                     };
 
+                    if (!GenLevel(&game->lvl, zfw_context->window_state.size, &game->run_state, zfw_context->temp_mem_arena)) {
+                        return ek_game_tick_result_error;
+                    }
+
                     break;
 
                 case ek_fade_next:
                     ZERO_OUT(game->lvl);
 
-                    if (!GenLevel(&game->lvl, zfw_context->window_state.size, zfw_context->temp_mem_arena)) {
+                    game->run_state.lvl_num++;
+
+                    if (!GenLevel(&game->lvl, zfw_context->window_state.size, &game->run_state, zfw_context->temp_mem_arena)) {
                         return ek_game_tick_result_error;
                     }
 
                     game->lvl.started = true;
-                    game->run_state.lvl_num++;
 
                     break;
             }
@@ -164,7 +165,7 @@ bool RenderGame(const s_game_render_context* const zfw_context) {
             return false;
         }
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("[RIGHT]/[LEFT]/[DOWN]/[UP] TO MOVE\n[X] TO ATTACK\n[Z] TO INTERACT"), &game->fonts, ek_font_pixel_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 16.0f}, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, game->title_alpha}, zfw_context->temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("[RIGHT]/[LEFT]/[DOWN]/[UP] TO MOVE\n[X] TO ATTACK\n[Z] TO INTERACT"), &game->fonts, ek_font_pixel_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 20.0f}, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, game->title_alpha}, zfw_context->temp_mem_arena)) {
             return false;
         }
 
