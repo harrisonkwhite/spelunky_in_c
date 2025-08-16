@@ -3,7 +3,6 @@
 
 #include <zfwc.h>
 
-#define NO_WORLD_GEN_DEBUG 1
 #define SHOW_DEBUG_HITBOXES 0
 
 #define HP_LIMIT 3
@@ -206,7 +205,15 @@ typedef struct {
 
 #define ENEMY_LIMIT 128
 
+typedef enum {
+    ek_level_update_end_result_normal,
+    ek_level_update_end_result_next,
+    ek_level_update_end_result_restart
+} e_level_update_end_result;
+
 typedef struct {
+    bool started;
+
     int index;
 
     s_tilemap tilemap;
@@ -225,13 +232,12 @@ typedef struct {
     int gold_cnt;
 
     s_v2 view_pos;
-
-    bool completed;
 } s_level;
 
 typedef struct {
     s_texture_group textures;
     s_font_group fonts;
+    s_surface lvl_surf;
     bool title;
     float title_alpha;
     s_level lvl;
@@ -243,7 +249,7 @@ bool RenderGame(const s_game_render_context* const zfw_context);
 void CleanGame(void* const dev_mem);
 
 bool WARN_UNUSED_RESULT GenLevel(s_level* const lvl, const s_v2_s32 window_size, s_mem_arena* const temp_mem_arena);
-void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_context);
+e_level_update_end_result UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_context);
 void RenderLevel(s_level* const lvl, const s_rendering_context* const rc, const s_texture_group* const textures);
 bool RenderLevelUI(s_level* const lvl, const s_rendering_context* const rc, const s_font_group* const fonts, s_mem_arena* const temp_mem_arena);
 

@@ -5,12 +5,12 @@
 
 // Check tiles to the right. If the topmost tile has a 
 
-#define GRAVITY 0.15f
+#define GRAVITY 0.4f
 
-#define PLAYER_MOVE_SPD 1.0f
-#define PLAYER_MOVE_SPD_LERP 0.2f
-#define PLAYER_JUMP_HEIGHT 2.0f
-#define PLAYER_CLIMB_SPD 1.0f
+#define PLAYER_MOVE_SPD 1.5f
+#define PLAYER_MOVE_SPD_LERP 0.3f
+#define PLAYER_JUMP_HEIGHT 3.0f
+#define PLAYER_CLIMB_SPD 2.0f
 #define PLAYER_ORIGIN (s_v2){0.5f, 0.5f}
 #define PLAYER_WHIP_OFFS 5.0f
 
@@ -19,7 +19,7 @@
 #define ARROW_SPD 4.0f
 
 #define SNAKE_ORIGIN (s_v2){0.5f, 0.5f}
-#define SNAKE_MOVE_SPD 0.5f
+#define SNAKE_MOVE_SPD 1.0f
 #define SNAKE_MOVE_SPD_LERP 0.1f
 #define SNAKE_AHEAD_DIST 4.0f
 
@@ -130,6 +130,7 @@ static void MoveToSolidTile(s_v2* const pos, const e_cardinal_dir dir, const s_v
     }
 
     while (!CheckSolidTileCollision(GenCollider((s_v2){pos->x + jump.x, pos->y + jump.y}, collider_size, collider_origin), pos->y - pos_start.y, tm, false)) {
+        LOG("%f, %f", pos->x, pos->y);
         pos->x += jump.x;
         pos->y += jump.y;
     }
@@ -429,10 +430,10 @@ static void SpawnArrow(s_level* const lvl, const s_v2 pos, const bool right) {
 }
 
 static inline bool DoesPlayerExist(const s_level* const lvl) {
-    return lvl->hp > 0 && !lvl->completed;
+    return lvl->started && lvl->hp > 0;
 }
 
-void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_context) {
+e_level_update_end_result UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_context) {
     lvl->hitbox_cnt = 0;
 
     if (DoesPlayerExist(lvl)) {
@@ -518,10 +519,12 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
             }
 
             if (lvl->player.climbing) {
+                lvl->player.vel.y = 0.0f;
+
                 if (IsKeyDown(&zfw_context->input_context, ek_key_code_up)) {
                     lvl->player.vel.y = -PLAYER_CLIMB_SPD;
-                } else {
-                    lvl->player.vel.y = 0.0f;
+                } else if (IsKeyDown(&zfw_context->input_context, ek_key_code_down)) {
+                    lvl->player.vel.y = PLAYER_CLIMB_SPD;
                 }
             } else {
                 if (!lvl->player.latching) {
@@ -614,7 +617,7 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
         //
         if (IsKeyPressed(&zfw_context->input_context, ek_key_code_up)) {
             if (CheckTileCollisionWithState(NULL, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_exit)) {
-                lvl->completed = true;
+                return ek_level_update_end_result_next;
             }
         }
     }
@@ -727,6 +730,9 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
     assert(lvl->hp >= 0);
 
     if (lvl->hp == 0) {
+        if (IsKeyPressed(&zfw_context->input_context, ek_key_code_x)) {
+            return ek_level_update_end_result_restart;
+        }
     }
 
     //
@@ -740,24 +746,24 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
     const s_v2_s32 view_size = {zfw_context->window_state.size.x / g_view_scale, zfw_context->window_state.size.y / g_view_scale};
     view_dest.x = CLAMP(view_dest.x, view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
     view_dest.y = CLAMP(view_dest.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
-
+lvl->view_pos = view_dest;
+#if 0
     const float view_lerp_factor = 0.2f;
     lvl->view_pos.x = Lerp(lvl->view_pos.x, view_dest.x, view_lerp_factor);
     lvl->view_pos.y = Lerp(lvl->view_pos.y, view_dest.y, view_lerp_factor);
+#endif
 
     lvl->view_pos.x = CLAMP(lvl->view_pos.x, view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
     lvl->view_pos.y = CLAMP(lvl->view_pos.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
+
+    return ek_level_update_end_result_normal;
 }
 
 void RenderLevel(s_level* const lvl, const s_rendering_context* const rc, const s_texture_group* const textures) {
     const s_v2_s32 view_size = {rc->window_size.x / g_view_scale, rc->window_size.y / g_view_scale};
 
     s_matrix_4x4 lvl_view_mat = IdentityMatrix4x4();
-#if NO_WORLD_GEN_DEBUG
-
-    TranslateMatrix4x4(&lvl_view_mat, (s_v2){(-lvl->view_pos.x + view_size.x * 0.5f) * g_view_scale, (-lvl->view_pos.y + view_size.y * 0.5f) * g_view_scale});
-    ScaleMatrix4x4(&lvl_view_mat, g_view_scale);
-#endif
+    TranslateMatrix4x4(&lvl_view_mat, (s_v2){-lvl->view_pos.x + (view_size.x / 2.0f), (-lvl->view_pos.y + view_size.y * 0.5f)});
     SetViewMatrix(rc, &lvl_view_mat);
 
     //
@@ -856,13 +862,8 @@ bool RenderLevelUI(s_level* const lvl, const s_rendering_context* const rc, cons
         if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("You died!"), fonts, ek_font_roboto_96, (s_v2){rc->window_size.x / 2.0f, rc->window_size.y / 2.0f}, ALIGNMENT_CENTER, WHITE, temp_mem_arena)) {
             return false;
         }
-    }
 
-    //
-    // Level Completion
-    //
-    if (lvl->completed) {
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("LEVEL COMPLETED"), fonts, ek_font_roboto_96, (s_v2){rc->window_size.x / 2.0f, rc->window_size.y / 2.0f}, ALIGNMENT_CENTER, WHITE, temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("Press [X] to restart."), fonts, ek_font_roboto_64, (s_v2){rc->window_size.x / 2.0f, rc->window_size.y * 0.75f}, ALIGNMENT_CENTER, WHITE, temp_mem_arena)) {
             return false;
         }
     }

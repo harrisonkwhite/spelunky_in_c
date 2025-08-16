@@ -8,6 +8,8 @@ int main() {
         .window_title = ARRAY_FROM_STATIC("Spelunky in C"),
         .window_flags = ek_window_flags_resizable,
 
+        .targ_ticks_per_sec = 30,
+
         .init_func = InitGame,
         .tick_func = GameTick,
         .render_func = RenderGame,
