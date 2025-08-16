@@ -3,6 +3,8 @@
 // climbing notes
 // you mark what specific tile to latch onto when pressing right and while higher than it. the moment the top of your collider is less than the tile, you are locked back up into a latch state. only latch onto tile with nothing above it.
 
+// Check tiles to the right. If the topmost tile has a 
+
 #define GRAVITY 0.2f
 
 #define PLAYER_MOVE_SPD 1.5f
@@ -20,147 +22,6 @@
 #define SNAKE_MOVE_SPD 0.5f
 #define SNAKE_MOVE_SPD_LERP 0.1f
 #define SNAKE_AHEAD_DIST 4.0f
-
-typedef enum {
-    ek_tilemap_room_type_extra,
-    ek_tilemap_room_type_entry,
-    ek_tilemap_room_type_left_right_exits,
-    ek_tilemap_room_type_left_right_top_exits,
-    ek_tilemap_room_type_left_right_bottom_exits,
-    ek_tilemap_room_type_left_right_bottom_top_exits,
-    ek_tilemap_room_type_end_with_left_right_exits,
-    ek_tilemap_room_type_end_with_left_right_top_exits
-} e_tilemap_room_type;
-
-typedef e_tilemap_room_type t_tilemap_room_types[TILEMAP_ROOMS_VERT][TILEMAP_ROOMS_HOR];
-
-static void GenTilemapRoomTypes(t_tilemap_room_types* const room_types, t_s32* const starting_room_x) {
-    assert(IS_ZERO(*room_types));
-    assert(IS_ZERO(*starting_room_x));
-
-    *starting_room_x = RandRangeS32(0, TILEMAP_ROOMS_HOR);
-    s_v2_s32 pen = {*starting_room_x, 0};
-    *STATIC_ARRAY_2D_ELEM(*room_types, pen.y, pen.x) = ek_tilemap_room_type_entry;
-
-    while (true) {
-        e_tilemap_room_type* const rt_old = STATIC_ARRAY_2D_ELEM(*room_types, pen.y, pen.x);
-
-        if (*rt_old == ek_tilemap_room_type_extra) {
-            *rt_old = ek_tilemap_room_type_left_right_exits;
-        }
-
-        const s_v2_s32 pen_old = pen;
-
-        const int rand = RandRangeS32Incl(1, 5);
-
-        if (rand == 1 || rand == 2) {
-            pen.x++;
-
-            if (pen.x == TILEMAP_ROOMS_HOR) {
-                pen.x--;
-                continue;
-                //pen.y++;
-            }
-        } else if (rand == 3 || rand == 4) {
-            pen.x--;
-
-            if (pen.x == -1) {
-                pen.x++;
-                continue;
-                //pen.y++;
-            }
-        } else {
-            if (pen.y == 0 && pen.x == *starting_room_x) {
-                continue;
-            }
-
-            pen.y++;
-        }
-
-        if (pen.y == TILEMAP_ROOMS_VERT) {
-            if (*rt_old == ek_tilemap_room_type_left_right_exits) {
-                *rt_old = ek_tilemap_room_type_end_with_left_right_exits;
-            } else if (*rt_old == ek_tilemap_room_type_left_right_top_exits) {
-                *rt_old = ek_tilemap_room_type_end_with_left_right_top_exits;
-            }
-
-            break;
-        }
-
-        e_tilemap_room_type* const rt = STATIC_ARRAY_2D_ELEM(*room_types, pen.y, pen.x);
-
-        if (pen.y == pen_old.y + 1) {
-            *rt = ek_tilemap_room_type_left_right_top_exits;
-
-            if (*rt_old == ek_tilemap_room_type_left_right_exits) {
-                *rt_old = ek_tilemap_room_type_left_right_bottom_exits;
-            } else if (*rt_old == ek_tilemap_room_type_left_right_top_exits) {
-                *rt_old = ek_tilemap_room_type_left_right_bottom_top_exits;
-            } else {
-                assert(false);
-            }
-        }
-    }
-}
-
-static void SpawnEnemy(s_level* const lvl, const s_v2 pos, const e_enemy_type enemy_type) {
-    int enemy_index = -1;
-
-    for (int i = 0; i < STATIC_ARRAY_LEN(lvl->enemies); i++) {
-        const s_enemy* const enemy = STATIC_ARRAY_ELEM(lvl->enemies, i);
-
-        if (!enemy->active) {
-            enemy_index = i;
-            break;
-        }
-    }
-
-    if (enemy_index == -1) {
-        LOG_WARNING("out of enemy space");
-        return;
-    }
-
-    s_enemy* const enemy = STATIC_ARRAY_ELEM(lvl->enemies, enemy_index);
-
-    *enemy = (s_enemy){
-        .pos = pos,
-        .type = enemy_type,
-        .active = true
-    };
-
-    switch (enemy->type) {
-        case ek_enemy_type_snake:
-            enemy->snake_type.move_axis = RandPerc() < 0.5f ? 1 : -1;
-            break;
-    }
-}
-
-static s_v2_s32 PlayerSize() {
-    return RectS32Size(STATIC_ARRAY_ELEM(g_sprite_infos, ek_sprite_player)->src_rect);
-}
-
-static s_rect GenPlayerRect(const s_v2 player_pos) {
-    const s_v2_s32 size = RectS32Size(STATIC_ARRAY_ELEM(g_sprite_infos, ek_sprite_player)->src_rect);
-    return (s_rect){player_pos.x - (size.x * PLAYER_ORIGIN.x), player_pos.y - (size.y * PLAYER_ORIGIN.y), size.x, size.y};
-}
-
-static s_v2_s32 SnakeSize() {
-    return RectS32Size(STATIC_ARRAY_ELEM(g_sprite_infos, ek_sprite_snake_enemy)->src_rect);
-}
-
-static s_rect GenEnemyRect(const s_v2 enemy_pos, const e_enemy_type enemy_type) {
-    switch (enemy_type) {
-        case ek_enemy_type_snake:
-            {
-                const s_v2_s32 size = RectS32Size(STATIC_ARRAY_ELEM(g_sprite_infos, ek_sprite_snake_enemy)->src_rect);
-                return (s_rect){enemy_pos.x - (size.x * SNAKE_ORIGIN.x), enemy_pos.y - (size.y * SNAKE_ORIGIN.y), size.x, size.y};
-            }
-    }
-}
-
-static s_rect GenArrowRect(const s_v2 arrow_pos) {
-    return (s_rect){arrow_pos.x - (ARROW_SIZE.x * ARROW_ORIGIN.x), arrow_pos.y - (ARROW_SIZE.y * ARROW_ORIGIN.y), ARROW_SIZE.x, ARROW_SIZE.y};
-}
 
 static s_rect GenTileRect(const int tx, const int ty) {
     return (s_rect){tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE};
@@ -291,6 +152,147 @@ static void ProcSolidTileCollisions(s_v2* const pos, s_v2* const vel, const s_v2
     }
 }
 
+typedef enum {
+    ek_tilemap_room_type_extra,
+    ek_tilemap_room_type_entry,
+    ek_tilemap_room_type_left_right_exits,
+    ek_tilemap_room_type_left_right_top_exits,
+    ek_tilemap_room_type_left_right_bottom_exits,
+    ek_tilemap_room_type_left_right_bottom_top_exits,
+    ek_tilemap_room_type_end_with_left_right_exits,
+    ek_tilemap_room_type_end_with_left_right_top_exits
+} e_tilemap_room_type;
+
+typedef e_tilemap_room_type t_tilemap_room_types[TILEMAP_ROOMS_VERT][TILEMAP_ROOMS_HOR];
+
+static void GenTilemapRoomTypes(t_tilemap_room_types* const room_types, t_s32* const starting_room_x) {
+    assert(IS_ZERO(*room_types));
+    assert(IS_ZERO(*starting_room_x));
+
+    *starting_room_x = RandRangeS32(0, TILEMAP_ROOMS_HOR);
+    s_v2_s32 pen = {*starting_room_x, 0};
+    *STATIC_ARRAY_2D_ELEM(*room_types, pen.y, pen.x) = ek_tilemap_room_type_entry;
+
+    while (true) {
+        e_tilemap_room_type* const rt_old = STATIC_ARRAY_2D_ELEM(*room_types, pen.y, pen.x);
+
+        if (*rt_old == ek_tilemap_room_type_extra) {
+            *rt_old = ek_tilemap_room_type_left_right_exits;
+        }
+
+        const s_v2_s32 pen_old = pen;
+
+        const int rand = RandRangeS32Incl(1, 5);
+
+        if (rand == 1 || rand == 2) {
+            pen.x++;
+
+            if (pen.x == TILEMAP_ROOMS_HOR) {
+                pen.x--;
+                continue;
+                //pen.y++;
+            }
+        } else if (rand == 3 || rand == 4) {
+            pen.x--;
+
+            if (pen.x == -1) {
+                pen.x++;
+                continue;
+                //pen.y++;
+            }
+        } else {
+            if (pen.y == 0 && pen.x == *starting_room_x) {
+                continue;
+            }
+
+            pen.y++;
+        }
+
+        if (pen.y == TILEMAP_ROOMS_VERT) {
+            if (*rt_old == ek_tilemap_room_type_left_right_exits) {
+                *rt_old = ek_tilemap_room_type_end_with_left_right_exits;
+            } else if (*rt_old == ek_tilemap_room_type_left_right_top_exits) {
+                *rt_old = ek_tilemap_room_type_end_with_left_right_top_exits;
+            }
+
+            break;
+        }
+
+        e_tilemap_room_type* const rt = STATIC_ARRAY_2D_ELEM(*room_types, pen.y, pen.x);
+
+        if (pen.y == pen_old.y + 1) {
+            *rt = ek_tilemap_room_type_left_right_top_exits;
+
+            if (*rt_old == ek_tilemap_room_type_left_right_exits) {
+                *rt_old = ek_tilemap_room_type_left_right_bottom_exits;
+            } else if (*rt_old == ek_tilemap_room_type_left_right_top_exits) {
+                *rt_old = ek_tilemap_room_type_left_right_bottom_top_exits;
+            } else {
+                assert(false);
+            }
+        }
+    }
+}
+
+static s_v2_s32 SnakeSize() {
+    return RectS32Size(STATIC_ARRAY_ELEM(g_sprite_infos, ek_sprite_snake_enemy)->src_rect);
+}
+
+static void SpawnEnemy(s_level* const lvl, const s_v2 pos, const e_enemy_type enemy_type) {
+    int enemy_index = -1;
+
+    for (int i = 0; i < STATIC_ARRAY_LEN(lvl->enemies); i++) {
+        const s_enemy* const enemy = STATIC_ARRAY_ELEM(lvl->enemies, i);
+
+        if (!enemy->active) {
+            enemy_index = i;
+            break;
+        }
+    }
+
+    if (enemy_index == -1) {
+        LOG_WARNING("out of enemy space");
+        return;
+    }
+
+    s_enemy* const enemy = STATIC_ARRAY_ELEM(lvl->enemies, enemy_index);
+
+    *enemy = (s_enemy){
+        .pos = pos,
+        .type = enemy_type,
+        .active = true
+    };
+
+    switch (enemy->type) {
+        case ek_enemy_type_snake:
+            enemy->snake_type.move_axis = RandPerc() < 0.5f ? 1 : -1;
+            break;
+    }
+}
+
+static s_v2_s32 PlayerSize() {
+    return RectS32Size(STATIC_ARRAY_ELEM(g_sprite_infos, ek_sprite_player)->src_rect);
+}
+
+static s_rect GenPlayerRect(const s_v2 player_pos) {
+    const s_v2_s32 size = RectS32Size(STATIC_ARRAY_ELEM(g_sprite_infos, ek_sprite_player)->src_rect);
+    return (s_rect){player_pos.x - (size.x * PLAYER_ORIGIN.x), player_pos.y - (size.y * PLAYER_ORIGIN.y), size.x, size.y};
+}
+
+static s_rect GenEnemyRect(const s_v2 enemy_pos, const e_enemy_type enemy_type) {
+    switch (enemy_type) {
+        case ek_enemy_type_snake:
+            {
+                const s_v2_s32 size = RectS32Size(STATIC_ARRAY_ELEM(g_sprite_infos, ek_sprite_snake_enemy)->src_rect);
+                return (s_rect){enemy_pos.x - (size.x * SNAKE_ORIGIN.x), enemy_pos.y - (size.y * SNAKE_ORIGIN.y), size.x, size.y};
+            }
+    }
+}
+
+static s_rect GenArrowRect(const s_v2 arrow_pos) {
+    return (s_rect){arrow_pos.x - (ARROW_SIZE.x * ARROW_ORIGIN.x), arrow_pos.y - (ARROW_SIZE.y * ARROW_ORIGIN.y), ARROW_SIZE.x, ARROW_SIZE.y};
+}
+
 bool GenLevel(s_level* const lvl, const s_v2_s32 window_size, s_mem_arena* const temp_mem_arena) {
     assert(IS_ZERO(*lvl));
 
@@ -385,6 +387,21 @@ bool GenLevel(s_level* const lvl, const s_v2_s32 window_size, s_mem_arena* const
 
     lvl->hp = HP_LIMIT;
 
+    MoveToSolidTile(&lvl->player.pos, ek_cardinal_dir_down, (s_v2){PlayerSize().x, PlayerSize().y}, PLAYER_ORIGIN, &lvl->tilemap);
+
+    // Move enemies down.
+    for (int i = 0; i < STATIC_ARRAY_LEN(lvl->enemies); i++) {
+        s_enemy* const enemy = STATIC_ARRAY_ELEM(lvl->enemies, i);
+
+        if (!enemy->active) {
+            continue;
+        }
+
+        if (enemy->type == ek_enemy_type_snake) {
+            MoveToSolidTile(&enemy->pos, ek_cardinal_dir_down, (s_v2){SnakeSize().x, SnakeSize().y}, SNAKE_ORIGIN, &lvl->tilemap);
+        }
+    }
+
     return true;
 }
 
@@ -413,7 +430,11 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
         {
             s_player* const player = &lvl->player;
 
-            const int move_axis = IsKeyDown(&zfw_context->input_context, ek_key_code_right) - IsKeyDown(&zfw_context->input_context, ek_key_code_left);
+            int move_axis = IsKeyDown(&zfw_context->input_context, ek_key_code_right) - IsKeyDown(&zfw_context->input_context, ek_key_code_left);
+
+            if (player->latching) {
+                move_axis = 0;
+            }
 
             if (move_axis == 1) {
                 player->facing_right = true;
@@ -424,21 +445,45 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
             const float vel_x_dest = PLAYER_MOVE_SPD * move_axis;
             player->vel.x = Lerp(player->vel.x, vel_x_dest, PLAYER_MOVE_SPD_LERP);
 
-            /*if (CheckTileCollision(RectTranslated(GenPlayerRect(lvl->player.pos), (s_v2){1.0f, 0.0f}), &lvl->tilemap)) {
-                stuck = true;
-            } else {
-                stuck = false;
-            }*/
+            s_v2_s32 possible_latch_targ = {-1, -1};
 
-            bool possible_latch = false;
-
-            if (IsKeyDown(&zfw_context->input_context, ek_key_code_right)) {
+            if (move_axis != 0) {
                 const s_rect rect = GenPlayerRect(player->pos);
+
+                const int tx = (player->pos.x / TILE_SIZE) + move_axis;
 
                 int ty_min = rect.y / TILE_SIZE;
                 int ty_max = ceilf((rect.y + rect.height) / TILE_SIZE);
 
                 for (int ty = ty_min; ty < ty_max; ty++) {
+                    if (tx < 0 || tx >= TILEMAP_WIDTH || ty < 0 || ty >= TILEMAP_HEIGHT) {
+                        continue;
+                    }
+
+                    const s_tile* const t = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, ty, tx);
+
+                    const s_rect tile_rect = GenTileRect(tx, ty);
+
+                    if (move_axis == 1) {
+                        if (rect.x + rect.width + 1.0f < tile_rect.x) {
+                            break;
+                        }
+                    } else {
+                        assert(move_axis == -1); // SAHDKJLASH
+
+                        if (rect.x - 1.0f >= tile_rect.x + tile_rect.width) {
+                            break;
+                        }
+                    }
+
+                    if (tile_rect.y <= rect.y && *STATIC_ARRAY_ELEM(g_tile_states_solid, t->state)) {
+                        break;
+                    }
+
+                    if (tile_rect.y > rect.y && *STATIC_ARRAY_ELEM(g_tile_states_solid, t->state)) {
+                        possible_latch_targ = (s_v2_s32){tx, ty};
+                        break;
+                    }
                 }
             }
 
@@ -467,18 +512,35 @@ void UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_contex
                     lvl->player.vel.y = 0.0f;
                 }
             } else {
-                lvl->player.vel.y += GRAVITY;
+                if (!lvl->player.latching) {
+                    lvl->player.vel.y += GRAVITY;
+                }
             }
 
-            if (on_ground) {
+            if (on_ground || lvl->player.latching) {
                 if (IsKeyPressed(&zfw_context->input_context, ek_key_code_up)) {
                     lvl->player.vel.y = -PLAYER_JUMP_HEIGHT;
+                    lvl->player.latching = false;
                 }
             }
 
             ProcSolidTileCollisions(&player->pos, &player->vel, (s_v2){PlayerSize().x, PlayerSize().y}, PLAYER_ORIGIN, &lvl->tilemap);
 
             lvl->player.pos = V2Sum(lvl->player.pos, lvl->player.vel);
+
+            //
+            // Update latch state.
+            //
+            if (!lvl->player.climbing && possible_latch_targ.x != -1 && possible_latch_targ.y != -1) {
+                const s_rect new_rect = GenPlayerRect(lvl->player.pos);
+                const s_rect possible_latch_targ_tile_rect = GenTileRect(possible_latch_targ.x, possible_latch_targ.y);
+
+                if (new_rect.y >= possible_latch_targ_tile_rect.y) {
+                    lvl->player.latching = true;
+                    lvl->player.pos.y -= new_rect.y >= possible_latch_targ_tile_rect.y;
+                    lvl->player.vel = (s_v2){0};
+                }
+            }
 
             // Check for gold!
             s_v2_s32 gold_tile_pos = {0};

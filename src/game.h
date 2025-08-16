@@ -85,11 +85,15 @@ static s_sprite_info g_sprite_infos[] = {
 };
 
 typedef enum {
+    ek_font_roboto_32,
+    ek_font_roboto_48,
     ek_font_roboto_64,
     ek_font_roboto_96
 } e_font;
 
 static const s_char_array_view g_font_file_paths[] = {
+    [ek_font_roboto_32] = ARRAY_FROM_STATIC("assets/fonts/roboto_32"),
+    [ek_font_roboto_48] = ARRAY_FROM_STATIC("assets/fonts/roboto_48"),
     [ek_font_roboto_64] = ARRAY_FROM_STATIC("assets/fonts/roboto_64"),
     [ek_font_roboto_96] = ARRAY_FROM_STATIC("assets/fonts/roboto_96")
 };
@@ -141,6 +145,7 @@ typedef struct {
     bool climbing;
     bool cant_climb;
     bool facing_right;
+    bool latching;
 } s_player;
 
 typedef struct {
@@ -201,6 +206,8 @@ typedef struct {
 typedef struct {
     s_texture_group textures;
     s_font_group fonts;
+    bool title;
+    float title_alpha;
     s_level lvl;
 } s_game;
 

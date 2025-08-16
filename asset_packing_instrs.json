@@ -6,6 +6,18 @@
     },
     {
         "type": "font",
+        "output_file_path": "assets/fonts/roboto_32",
+        "file_path": "assets_raw/fonts/roboto.ttf",
+        "height": 32
+    },
+    {
+        "type": "font",
+        "output_file_path": "assets/fonts/roboto_48",
+        "file_path": "assets_raw/fonts/roboto.ttf",
+        "height": 48
+    },
+    {
+        "type": "font",
         "output_file_path": "assets/fonts/roboto_64",
         "file_path": "assets_raw/fonts/roboto.ttf",
         "height": 64
