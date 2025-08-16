@@ -887,7 +887,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
         //
         // End Level
         //
-        if (IsKeyPressed(&zfw_context->input_context, ek_key_code_up)) {
+        if (IsKeyPressed(&zfw_context->input_context, ek_key_code_z)) {
             if (CheckTileCollisionWithState(NULL, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_exit)) {
                 lvl->leaving = true;
             }
