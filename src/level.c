@@ -656,9 +656,11 @@ static void TriggerHorShooters(s_level* const lvl, const int tx_center, const in
 static void SpawnBloodParticles(s_level* const lvl, const s_v2 pos) {
     const int pt_cnt = RandRangeS32Incl(5, 7);
 
+    const float base_dir_offs = RandPerc() * TAU;
+
     for (int i = 0; i < pt_cnt; i++) {
-        const float dir = (((float)i / pt_cnt) * TAU) + RandRange(-PI * 0.2f, PI * 0.2f);
-        const s_v2 vel = LenDir(RandRange(2.5f, 4.0f), dir);
+        const float dir = (((float)i / pt_cnt) * TAU) + RandRange(-PI * 0.2f, PI * 0.2f) + base_dir_offs;
+        const s_v2 vel = LenDir(RandRange(2.0f, 4.0f), dir);
 
         s_particle* const pt = SpawnParticle(lvl, pos, vel, TAU * RandPerc());
 
@@ -669,6 +671,28 @@ static void SpawnBloodParticles(s_level* const lvl, const s_v2 pos) {
         pt->blend = RED;
 
         const float scale = RandRange(1.0f, 2.0f);
+        pt->scale = (s_v2){scale, scale};
+    }
+}
+
+static void SpawnGoldParticles(s_level* const lvl, const s_v2 pos) {
+    const int pt_cnt = RandRangeS32Incl(3, 4);
+
+    const float base_dir_offs = RandPerc() * TAU;
+
+    for (int i = 0; i < pt_cnt; i++) {
+        const float dir = (((float)i / pt_cnt) * TAU) + RandRange(-PI * 0.3f, PI * 0.3f) + base_dir_offs;
+        const s_v2 vel = LenDir(RandRange(1.5f, 3.0f), dir);
+
+        s_particle* const pt = SpawnParticle(lvl, pos, vel, TAU * RandPerc());
+
+        if (!pt) {
+            return;
+        }
+
+        pt->blend = YELLOW;
+
+        const float scale = RandRange(1.0f, 1.5f);
         pt->scale = (s_v2){scale, scale};
     }
 }
@@ -875,18 +899,10 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
                 }
             }
 
-            //@gold_particle
             s_v2_s32 gold_tile_pos = {0};
 
             if (CheckTileCollisionWithState(&gold_tile_pos, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_gold)) {
-                const int pt_cnt = RandRangeS32Incl(3, 4);
-
-                for (int i = 0; i < pt_cnt; i++) {
-                    const s_v2 vel = LenDir(RandRange(3.0f, 6.0f), RandPerc() * TAU);
-                    s_particle* const pt = SpawnParticle(lvl, (s_v2){(gold_tile_pos.x + 0.5f) * TILE_SIZE, (gold_tile_pos.y + 0.75f) * TILE_SIZE}, vel, TAU * RandPerc());
-                    pt->blend = YELLOW;
-                }
-
+                SpawnGoldParticles(lvl, (s_v2){(gold_tile_pos.x + 0.5f) * TILE_SIZE, (gold_tile_pos.y + 0.75f) * TILE_SIZE});
                 Shake(lvl, 0.5f);
                 STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, gold_tile_pos.y, gold_tile_pos.x)->state = ek_tile_state_empty;
                 run_state->gold_cnt += GOLD_INCR;
