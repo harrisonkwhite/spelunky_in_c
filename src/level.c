@@ -6,7 +6,7 @@
 // - bombs, items that explode when thrown
 // - bat enemy
 // - lots of level variations
-// - spikes
+// - clean up spike collision mask
 // - item drop outlines shouild be in the UI not in world space
 //
 // - money shouldnt be a tile (not necessary)
@@ -464,6 +464,8 @@ bool GenLevel(s_level* const lvl, const s_v2_s32 window_size, s_mem_arena* const
         return false;
     }
 
+    assert(rooms_tex.tex_size.x % TILEMAP_ROOM_WIDTH == 0 && rooms_tex.tex_size.y % TILEMAP_ROOM_HEIGHT == 0);
+
 #if 0
     for (int py = 0; py < rooms_tex.tex_size.y; py++) {
         for (int px = 0; px < rooms_tex.tex_size.x; px++) {
@@ -483,7 +485,7 @@ bool GenLevel(s_level* const lvl, const s_v2_s32 window_size, s_mem_arena* const
             const e_tilemap_room_type rt = *STATIC_ARRAY_2D_ELEM(room_types, ry, rx);
 
             const int rooms_tex_tl_x = TILEMAP_ROOM_WIDTH * rt;
-            const int rooms_tex_tl_y = 0;
+            const int rooms_tex_tl_y = TILEMAP_ROOM_HEIGHT * RandRangeS32(0, rooms_tex.tex_size.y / TILEMAP_ROOM_HEIGHT);
 
             for (int tyo = 0; tyo < TILEMAP_ROOM_HEIGHT; tyo++) {
                 for (int txo = 0; txo < TILEMAP_ROOM_WIDTH; txo++) {
@@ -559,8 +561,6 @@ bool GenLevel(s_level* const lvl, const s_v2_s32 window_size, s_mem_arena* const
     }
 
     //
-    lvl->view_pos_no_shake = lvl->player.pos;
-
     const s_v2_s32 view_size = {window_size.x / VIEW_SCALE, window_size.y / VIEW_SCALE};
     lvl->view_pos_no_shake.x = CLAMP(lvl->view_pos_no_shake.x, view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
     lvl->view_pos_no_shake.y = CLAMP(lvl->view_pos_no_shake.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
@@ -568,6 +568,8 @@ bool GenLevel(s_level* const lvl, const s_v2_s32 window_size, s_mem_arena* const
     lvl->hp = HP_LIMIT;
 
     MoveToSolidTile(&lvl->player.pos, ek_cardinal_dir_down, -1.0f, (s_v2){PlayerSize().x, PlayerSize().y}, PLAYER_ORIGIN, &lvl->tilemap);
+
+    lvl->view_pos_no_shake = lvl->player.pos;
 
     // Move enemies down.
     for (int i = 0; i < STATIC_ARRAY_LEN(lvl->enemies); i++) {

@@ -164,7 +164,7 @@ bool RenderGame(const s_game_render_context* const zfw_context) {
             return false;
         }
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("[RIGHT]/[LEFT]/[DOWN]/[UP] TO MOVE\n[X] TO ATTACK OR THROW ITEM\n[Z] TO EQUIP ITEM"), &game->fonts, ek_font_pixel_very_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 32.0f}, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, game->title_alpha}, zfw_context->temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("[RIGHT]/[LEFT]/[DOWN]/[UP] TO MOVE\n[X] TO ATTACK\n[Z] TO INTERACT"), &game->fonts, ek_font_pixel_very_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 32.0f}, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, game->title_alpha}, zfw_context->temp_mem_arena)) {
             return false;
         }
 
