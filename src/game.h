@@ -49,6 +49,8 @@ typedef enum {
     ek_sprite_door_tile_3,
     ek_sprite_spike_tile,
     ek_sprite_player,
+    ek_sprite_player_latch_onto_left,
+    ek_sprite_player_latch_onto_right,
     ek_sprite_snake_enemy,
     ek_sprite_bg,
     ek_sprite_arrow,
@@ -109,6 +111,14 @@ static s_sprite_info g_sprite_infos[] = {
     [ek_sprite_player] = {
         .tex = ek_texture_level,
         .src_rect = {1, 17, 6, 6}
+    },
+    [ek_sprite_player_latch_onto_left] = {
+        .tex = ek_texture_level,
+        .src_rect = {33, 17, 6, 6}
+    },
+    [ek_sprite_player_latch_onto_right] = {
+        .tex = ek_texture_level,
+        .src_rect = {41, 17, 6, 6}
     },
     [ek_sprite_snake_enemy] = {
         .tex = ek_texture_level,

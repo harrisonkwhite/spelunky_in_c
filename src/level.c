@@ -6,8 +6,6 @@
 // - bombs, items that explode when thrown
 // - bat enemy
 // - lots of level variations
-// - clean up spike collision mask
-// - item drop outlines shouild be in the UI not in world space
 // - problem: UI sometimes obscures stuff in corners like doors!
 //
 // - money shouldnt be a tile (not necessary)
@@ -36,7 +34,7 @@
 
 #define ARROW_SIZE (s_v2_s32){TILE_SIZE, TILE_SIZE / 2}
 #define ARROW_ORIGIN (s_v2){0.5f, 0.5f}
-#define ARROW_SPD 4.0f
+#define ARROW_SPD 5.0f
 
 #define SNAKE_ORIGIN (s_v2){0.5f, 0.5f}
 #define SNAKE_MOVE_SPD 0.5f
@@ -819,7 +817,17 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
             if (!lvl->player.climbing && (on_ground || lvl->player.latching)) {
                 if (IsKeyPressed(&zfw_context->input_context, ek_key_code_up)) {
                     lvl->player.vel.y = -PLAYER_JUMP_HEIGHT;
-                    lvl->player.latching = false;
+
+                    if (lvl->player.latching) {
+                        const int pt_cnt = RandRangeS32Incl(3, 4);
+
+                        for (int i = 0; i < pt_cnt; i++) {
+                            const s_v2 vel = LenDir(RandRange(2.0f, 4.0f), (-PI / 2.0f) + RandRange(-PI / 4.0f, PI / 4.0f));
+                            SpawnParticle(lvl, lvl->player.pos, vel, TAU * RandPerc());
+                        }
+
+                        lvl->player.latching = false;
+                    }
                 }
             }
 
@@ -1153,15 +1161,19 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
     };
 
     const s_v2_s32 view_size = {zfw_context->window_state.size.x / VIEW_SCALE, zfw_context->window_state.size.y / VIEW_SCALE};
+#if 0
     view_dest.x = CLAMP(view_dest.x, view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
     view_dest.y = CLAMP(view_dest.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
+#endif
 
     const float view_lerp_factor = 0.3f;
     lvl->view_pos_no_shake.x = Lerp(lvl->view_pos_no_shake.x, view_dest.x, view_lerp_factor);
     lvl->view_pos_no_shake.y = Lerp(lvl->view_pos_no_shake.y, view_dest.y, view_lerp_factor);
 
+#if 0
     lvl->view_pos_no_shake.x = CLAMP(lvl->view_pos_no_shake.x, view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
     lvl->view_pos_no_shake.y = CLAMP(lvl->view_pos_no_shake.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
+#endif
 
     lvl->view_shake *= 0.8f;
 
@@ -1236,7 +1248,14 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
     //
     if (DoesPlayerExist(lvl)) {
         const s_rect rect = GenPlayerRect(lvl->player.pos);
-        RenderSprite(rc, textures, ek_sprite_player, lvl->player.pos, PLAYER_ORIGIN, (s_v2){1.0f, 1.0f}, 0.0f, WHITE);
+
+        e_sprite spr = ek_sprite_player;
+
+        if (lvl->player.latching) {
+            spr = lvl->player.facing_right ? ek_sprite_player_latch_onto_right : ek_sprite_player_latch_onto_left;
+        }
+
+        RenderSprite(rc, textures, spr, lvl->player.pos, PLAYER_ORIGIN, (s_v2){1.0f, 1.0f}, 0.0f, WHITE);
 
         if (lvl->player.whip_break_time > 0) {
             const float dir_offs = (PI * 0.8f * ((float)lvl->player.whip_break_time / PLAYER_WHIP_BREAK_TIME));
