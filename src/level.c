@@ -30,6 +30,8 @@
 #define DOOR_FRAME_INTERVAL 5
 #define DOOR_FRAME_CNT 4
 
+#define ITEM_DROP_ORIGIN (s_v2){0.5f, 0.5f}
+
 static s_rect GenTileRect(const int tx, const int ty) {
     return (s_rect){tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE};
 }
@@ -323,6 +325,47 @@ static void SpawnParticle(s_level* const lvl, const s_v2 pos, const s_v2 vel) {
     };
 }
 
+static void SpawnItemDrop(s_level* const lvl, const s_v2 pos, const s_v2 vel, const e_item_type type) {
+    int drop_index = -1;
+
+    for (int i = 0; i < STATIC_ARRAY_LEN(lvl->item_drops); i++) {
+        const s_item_drop* const drop = STATIC_ARRAY_ELEM(lvl->item_drops, i);
+
+        if (!drop->active) {
+            drop_index = i;
+            break;
+        }
+    }
+
+    if (drop_index == -1) {
+        LOG_WARNING("out of item drop space");
+        return;
+    }
+
+    s_item_drop* const drop = STATIC_ARRAY_ELEM(lvl->item_drops, drop_index);
+
+    *drop = (s_item_drop){
+        .pos = pos,
+        .vel = vel,
+        .type = type,
+        .active = true
+    };
+}
+
+static s_v2 ItemDropSize(const s_v2 pos, const e_item_type type) {
+    const e_sprite spr = *STATIC_ARRAY_ELEM(g_item_type_sprs, type);
+    const s_v2_s32 size = RectS32Size(STATIC_ARRAY_ELEM(g_sprite_infos, spr)->src_rect);
+    return (s_v2){size.x, size.y};
+}
+
+static s_rect GenItemDropRect(const s_v2 pos, const e_item_type type) {
+    const s_v2 size = ItemDropSize(pos, type);
+    return (s_rect){
+        .x = pos.x - (size.x * ITEM_DROP_ORIGIN.x),
+        .y = pos.y - (size.y * ITEM_DROP_ORIGIN.y)
+    };
+}
+
 static s_v2_s32 PlayerSize() {
     return RectS32Size(STATIC_ARRAY_ELEM(g_sprite_infos, ek_sprite_player)->src_rect);
 }
@@ -435,6 +478,18 @@ bool GenLevel(s_level* const lvl, const s_v2_s32 window_size, s_mem_arena* const
     for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
         STATIC_ARRAY_2D_ELEM(tm->tiles, 0, tx)->state = ek_tile_state_dirt;
         STATIC_ARRAY_2D_ELEM(tm->tiles, TILEMAP_HEIGHT - 1, tx)->state = ek_tile_state_dirt;
+    }
+
+    // Add random rock items.
+    for (int ty = 1; ty < TILEMAP_HEIGHT; ty++) {
+        for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
+            const s_tile* const t = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, ty, tx);
+            const s_tile* const t_above = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, ty, tx);
+
+            if (t->state == ek_tile_state_dirt) {
+
+            }
+        }
     }
 
     //
@@ -664,16 +719,25 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
             }
 
             //
-            // Whipping
+            // Whipping or Item Use
             //
             if (lvl->player.whip_break_time > 0) {
                 lvl->player.whip_break_time--;
-            } else {
-                if (IsKeyPressed(&zfw_context->input_context, ek_key_code_x)) {
-                    lvl->player.whip_break_time = PLAYER_WHIP_BREAK_TIME;
+            }
 
-                    const s_v2 hb_pos = {lvl->player.pos.x + (lvl->player.facing_right ? PLAYER_WHIP_OFFS : -PLAYER_WHIP_OFFS), lvl->player.pos.y};
-                    SpawnHitbox(lvl, hb_pos, (s_v2){PlayerSize().x * 1.5f, PlayerSize().y}, (s_v2){0.5f, 0.5f}, 1, false);
+            if (IsKeyPressed(&zfw_context->input_context, ek_key_code_x)) {
+                if (lvl->player.holding_item) {
+                    // Throw!
+                    const s_v2 throw_vel = {8.0f, 1.0f}; // ???
+                    SpawnItemDrop(lvl, lvl->player.pos, throw_vel, lvl->player.item_type_held);
+                    lvl->player.holding_item = false;
+                } else {
+                    if (lvl->player.whip_break_time > 0) {
+                        lvl->player.whip_break_time = PLAYER_WHIP_BREAK_TIME;
+
+                        const s_v2 hb_pos = {lvl->player.pos.x + (lvl->player.facing_right ? PLAYER_WHIP_OFFS : -PLAYER_WHIP_OFFS), lvl->player.pos.y};
+                        SpawnHitbox(lvl, hb_pos, (s_v2){PlayerSize().x * 1.5f, PlayerSize().y}, (s_v2){0.5f, 0.5f}, 1, false);
+                    }
                 }
             }
         }
@@ -856,6 +920,49 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
     }
 
     //
+    // Item Drops
+    //
+    {
+        for (int i = 0; i < STATIC_ARRAY_LEN(lvl->item_drops); i++) {
+            s_item_drop* const drop = STATIC_ARRAY_ELEM(lvl->item_drops, i);
+
+            if (!drop->active) {
+                continue;
+            }
+
+            drop->vel.y += GRAVITY;
+
+            ProcSolidTileCollisions(&drop->pos, &drop->vel, ItemDropSize(drop->pos, drop->type), ITEM_DROP_ORIGIN, &lvl->tilemap, false);
+
+            drop->pos = V2Sum(drop->pos, drop->vel);
+        }
+
+        // Item drop collection
+        if (!lvl->player.holding_item) {
+            const s_rect player_collider = GenPlayerRect(lvl->player.pos);
+            const bool player_collecting = IsKeyPressed(&zfw_context->input_context, ek_key_code_z);
+
+            for (int i = 0; i < STATIC_ARRAY_LEN(lvl->item_drops); i++) {
+                s_item_drop* const drop = STATIC_ARRAY_ELEM(lvl->item_drops, i);
+
+                if (!drop->active) {
+                    continue;
+                }
+
+                // Collection by player
+                if (player_collecting) {
+                    const s_rect drop_collider = GenItemDropRect(drop->pos, drop->type);
+
+                    if (DoRectsInters(player_collider, drop_collider)) {
+                        drop->active = false;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    //
     // Particles
     //
     for (int i = 0; i < STATIC_ARRAY_LEN(lvl->particles); i++) {
@@ -953,6 +1060,10 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
             const float dir_offs = (PI * 0.6f * ((float)lvl->player.whip_break_time / PLAYER_WHIP_BREAK_TIME));
             const float dir = lvl->player.facing_right ? dir_offs - (PI * 0.1f) : PI + (PI * 0.1f) - dir_offs;
             RenderSprite(rc, textures, ek_sprite_whip, lvl->player.pos, (s_v2){0.0f, 0.5f}, (s_v2){1.0f, 1.0f}, dir, WHITE);
+        }
+
+        if (lvl->player.holding_item) {
+            RenderSprite(rc, textures, *STATIC_ARRAY_ELEM(g_item_type_sprs, lvl->player.item_type_held), lvl->player.pos, ITEM_DROP_ORIGIN, (s_v2){1.0f, 1.0f}, 0.0f, WHITE);
         }
     }
 

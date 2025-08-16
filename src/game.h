@@ -48,7 +48,8 @@ typedef enum {
     ek_sprite_snake_enemy,
     ek_sprite_bg,
     ek_sprite_arrow,
-    ek_sprite_whip
+    ek_sprite_whip,
+    ek_sprite_rock_item
 } e_sprite;
 
 typedef struct {
@@ -116,6 +117,10 @@ static s_sprite_info g_sprite_infos[] = {
     [ek_sprite_whip] = {
         .tex = ek_texture_level,
         .src_rect = {16, 27, 8, 2}
+    },
+    [ek_sprite_rock_item] = {
+        .tex = ek_texture_level,
+        .src_rect = {26, 18, 6, 6}
     }
 };
 
@@ -192,6 +197,21 @@ typedef struct {
     s_tile tiles[TILEMAP_HEIGHT][TILEMAP_WIDTH];
 } s_tilemap;
 
+typedef enum {
+    ek_item_type_rock
+} e_item_type;
+
+static const e_sprite g_item_type_sprs[] = {
+    [ek_item_type_rock] = ek_sprite_rock_item
+};
+
+typedef struct {
+    bool active;
+    e_item_type type;
+    s_v2 pos;
+    s_v2 vel;
+} s_item_drop;
+
 typedef struct {
     s_v2 pos;
     s_v2 vel;
@@ -200,7 +220,8 @@ typedef struct {
     bool facing_right;
     bool latching;
     int whip_break_time;
-
+    bool holding_item;
+    e_item_type item_type_held;
 } s_player;
 
 typedef struct {
@@ -261,6 +282,8 @@ typedef struct {
     s_player player;
 
     s_enemy enemies[ENEMY_LIMIT];
+
+    s_item_drop item_drops[32];
 
     s_particle particles[128];
 
