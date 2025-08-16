@@ -108,11 +108,11 @@ static s_sprite_info g_sprite_infos[] = {
     },
     [ek_sprite_player] = {
         .tex = ek_texture_level,
-        .src_rect = {1, 17, 6, 7}
+        .src_rect = {1, 17, 6, 6}
     },
     [ek_sprite_snake_enemy] = {
         .tex = ek_texture_level,
-        .src_rect = {9, 17, 6, 6}
+        .src_rect = {8, 18, 8, 4}
     },
     [ek_sprite_bg] = {
         .tex = ek_texture_level,

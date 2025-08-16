@@ -810,7 +810,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
                 }
             }
 
-            if (on_ground || lvl->player.latching) {
+            if (!lvl->player.climbing && (on_ground || lvl->player.latching)) {
                 if (IsKeyPressed(&zfw_context->input_context, ek_key_code_up)) {
                     lvl->player.vel.y = -PLAYER_JUMP_HEIGHT;
                     lvl->player.latching = false;
@@ -1458,11 +1458,11 @@ bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_s
         RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y + bg_rect.height, bg_rect.width, bg_rect_outline_size}, (u_v4){WHITE.rgb, lvl->death_alpha});
         RenderRect(rc, bg_rect, (u_v4){BLACK.rgb, lvl->death_alpha * BG_ALPHA});
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("YOU DIED"), fonts, ek_font_pixel_large, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) - 40.0f}, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, lvl->death_alpha}, temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("YOU DIED"), fonts, ek_font_pixel_large, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) - 44.0f}, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, lvl->death_alpha}, temp_mem_arena)) {
             return false;
         }
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("PRESS [X] TO RESTART"), fonts, ek_font_pixel_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 40.0f}, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, lvl->death_alpha}, temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("PRESS [X] TO RESTART"), fonts, ek_font_pixel_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 44.0f}, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, lvl->death_alpha}, temp_mem_arena)) {
             return false;
         }
     }
