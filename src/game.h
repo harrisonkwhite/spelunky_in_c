@@ -47,13 +47,13 @@ typedef enum {
     ek_sprite_door_tile_1,
     ek_sprite_door_tile_2,
     ek_sprite_door_tile_3,
-    ek_sprite_exit_tile,
+    ek_sprite_spike_tile,
     ek_sprite_player,
     ek_sprite_snake_enemy,
     ek_sprite_bg,
     ek_sprite_arrow,
     ek_sprite_whip,
-    ek_sprite_rock_item
+    ek_sprite_rock_item,
 } e_sprite;
 
 typedef struct {
@@ -102,9 +102,13 @@ static s_sprite_info g_sprite_infos[] = {
         .tex = ek_texture_level,
         .src_rect = {24, 8, 8, 8}
     },
+    [ek_sprite_spike_tile] = {
+        .tex = ek_texture_level,
+        .src_rect = {40, 0, 8, 8}
+    },
     [ek_sprite_player] = {
         .tex = ek_texture_level,
-        .src_rect = {1, 17, 6, 6}
+        .src_rect = {1, 17, 6, 7}
     },
     [ek_sprite_snake_enemy] = {
         .tex = ek_texture_level,
@@ -152,8 +156,15 @@ typedef enum {
     ek_tile_state_gold,
     ek_tile_state_shooter,
     ek_tile_state_entrance,
-    ek_tile_state_exit
+    ek_tile_state_exit,
+    ek_tile_state_spike
 } e_tile_state;
+
+typedef enum {
+    ek_tile_not_platform,
+    ek_tile_safe_platform,
+    ek_tile_death_platform
+} e_tile_platform_type;
 
 static bool g_tile_state_is_behind_ents[] = {
     [ek_tile_state_empty] = false,
@@ -163,7 +174,8 @@ static bool g_tile_state_is_behind_ents[] = {
     [ek_tile_state_gold] = true,
     [ek_tile_state_shooter] = false,
     [ek_tile_state_entrance] = true,
-    [ek_tile_state_exit] = true
+    [ek_tile_state_exit] = true,
+    [ek_tile_state_spike] = true
 };
 
 static bool g_tile_states_solid[] = {
@@ -174,18 +186,20 @@ static bool g_tile_states_solid[] = {
     [ek_tile_state_gold] = false,
     [ek_tile_state_shooter] = true,
     [ek_tile_state_entrance] = false,
-    [ek_tile_state_exit] = false
+    [ek_tile_state_exit] = false,
+    [ek_tile_state_spike] = false
 };
 
-static bool g_tile_states_platform[] = {
-    [ek_tile_state_empty] = false,
-    [ek_tile_state_dirt] = false,
-    [ek_tile_state_ladder] = false,
-    [ek_tile_state_ladder_platform] = true,
-    [ek_tile_state_gold] = false,
-    [ek_tile_state_shooter] = false,
-    [ek_tile_state_entrance] = false,
-    [ek_tile_state_exit] = false
+static e_tile_platform_type g_tile_states_platform[] = {
+    [ek_tile_state_empty] = ek_tile_not_platform,
+    [ek_tile_state_dirt] = ek_tile_not_platform,
+    [ek_tile_state_ladder] = ek_tile_not_platform,
+    [ek_tile_state_ladder_platform] = ek_tile_safe_platform,
+    [ek_tile_state_gold] = ek_tile_not_platform,
+    [ek_tile_state_shooter] = ek_tile_not_platform,
+    [ek_tile_state_entrance] = ek_tile_not_platform,
+    [ek_tile_state_exit] = ek_tile_not_platform,
+    [ek_tile_state_spike] = ek_tile_death_platform
 };
 
 static e_sprite g_tile_state_sprs[] = {
@@ -195,7 +209,8 @@ static e_sprite g_tile_state_sprs[] = {
     [ek_tile_state_gold] = ek_sprite_gold_tile,
     [ek_tile_state_shooter] = ek_sprite_shooter_tile_left,
     [ek_tile_state_entrance] = ek_sprite_door_tile_0,
-    [ek_tile_state_exit] = ek_sprite_door_tile_3
+    [ek_tile_state_exit] = ek_sprite_door_tile_3,
+    [ek_tile_state_spike] = ek_sprite_spike_tile
 };
 
 typedef struct {

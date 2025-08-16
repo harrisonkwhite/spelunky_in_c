@@ -6,11 +6,11 @@
 // - bombs, items that explode when thrown
 // - bat enemy
 // - lots of level variations
-// - screenshake, show other tiles for out of bounds
 // - spikes
 // - item drop outlines shouild be in the UI not in world space
 //
 // - money shouldnt be a tile (not necessary)
+// - need control over player jump height
 
 // climbing notes
 // you mark what specific tile to latch onto when pressing right and while higher than it. the moment the top of your collider is less than the tile, you are locked back up into a latch state. only latch onto tile with nothing above it.
@@ -73,7 +73,7 @@ static bool CheckSolidTileCollision(const s_rect rect, const float y_shift, cons
                 continue;
             }
 
-            const bool is_platform = *STATIC_ARRAY_ELEM(g_tile_states_platform, ts);
+            const bool is_platform = *STATIC_ARRAY_ELEM(g_tile_states_platform, ts) != ek_tile_not_platform;
 
             if (ignore_platforms && is_platform) {
                 continue;
@@ -83,6 +83,30 @@ static bool CheckSolidTileCollision(const s_rect rect, const float y_shift, cons
 
             if (DoRectsInters(rect, tr)) {
                 if (is_platform && rect.y + rect.height - y_shift > tr.y) {
+                    continue;
+                }
+
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+static bool CheckDeathPlatformCollision(const s_rect rect, const float y_shift, const s_tilemap* const tm) {
+    for (int ty = 0; ty < TILEMAP_HEIGHT; ty++) {
+        for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
+            const e_tile_state ts = STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state;
+
+            if (*STATIC_ARRAY_ELEM(g_tile_states_platform, ts) != ek_tile_death_platform) {
+                continue;
+            }
+
+            const s_rect tr = GenTileRect(tx, ty);
+
+            if (DoRectsInters(rect, tr)) {
+                if (rect.y + rect.height - y_shift > tr.y) {
                     continue;
                 }
 
@@ -176,6 +200,15 @@ static void MoveToSolidTile(s_v2* const pos, const e_cardinal_dir dir, const flo
         pos->y += jump.y;
         dist += jump_dist;
     }
+
+#if 0
+    if (passed_death_platform && !*passed_death_platform) {
+        if (CheckDeathPlatformCollision(GenCollider(*pos, collider_size, collider_origin), pos->y - pos_start.y, tm)) {
+            assert(false);
+            *passed_death_platform = true;
+        }
+    }
+#endif
 
 #if 0
     pos->x = roundf(pos->x);
@@ -487,6 +520,8 @@ bool GenLevel(s_level* const lvl, const s_v2_s32 window_size, s_mem_arena* const
                     } else if (tex_px_r == 255 && tex_px_g == 0 && tex_px_b == 255 && tex_px_a == 255) {
                         STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_exit;
                         STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->door_frame_time = DOOR_FRAME_CNT * DOOR_FRAME_INTERVAL;
+                    } else if (tex_px_r == 255 && tex_px_g == 255 && tex_px_b == 255 && tex_px_a == 255) {
+                        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_spike;
                     } else if (tex_px_r == 0 && tex_px_g == 255 && tex_px_b == 255 && tex_px_a == 255) {
                         SpawnEnemy(lvl, tile_center_in_lvl, ek_enemy_type_snake);
                     } else {
@@ -786,6 +821,10 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
             ProcSolidTileCollisions(&player->pos, &player->vel, (s_v2){PlayerSize().x, PlayerSize().y}, PLAYER_ORIGIN, &lvl->tilemap, holding_down);
 
             lvl->player.pos = V2Sum(lvl->player.pos, lvl->player.vel);
+
+            if (CheckDeathPlatformCollision(GenPlayerRect(player->pos), lvl->player.vel.y, &lvl->tilemap)) {
+                lvl->hp = 0; // OUCH
+            }
 
             //
             // Update latch state.
