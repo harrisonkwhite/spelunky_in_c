@@ -3,7 +3,7 @@
 
 #include <zfwc.h>
 
-#define SHOW_DEBUG_HITBOXES 0
+#define SHOW_DEBUG_HITBOXES 1
 
 #define HP_LIMIT 3
 
@@ -118,7 +118,7 @@ static s_sprite_info g_sprite_infos[] = {
     },
     [ek_sprite_whip] = {
         .tex = ek_texture_level,
-        .src_rect = {16, 27, 8, 2}
+        .src_rect = {16, 27, 8, 1}
     },
     [ek_sprite_rock_item] = {
         .tex = ek_texture_level,

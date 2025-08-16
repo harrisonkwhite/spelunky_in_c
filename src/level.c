@@ -803,8 +803,8 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
                     if (lvl->player.whip_break_time == 0) {
                         lvl->player.whip_break_time = PLAYER_WHIP_BREAK_TIME;
 
-                        const s_v2 hb_pos = {lvl->player.pos.x + (lvl->player.facing_right ? PLAYER_WHIP_OFFS : -PLAYER_WHIP_OFFS), lvl->player.pos.y};
-                        SpawnHitbox(lvl, hb_pos, (s_v2){PlayerSize().x * 1.5f, PlayerSize().y}, (s_v2){0.5f, 0.5f}, 1, false);
+                        const s_v2 hb_pos = {lvl->player.pos.x + (lvl->player.facing_right ? PLAYER_WHIP_OFFS : -PLAYER_WHIP_OFFS), lvl->player.pos.y - 1.0f};
+                        SpawnHitbox(lvl, hb_pos, (s_v2){PlayerSize().x * 1.75f, PlayerSize().y * 1.25}, (s_v2){0.5f, 0.5f}, 1, false);
                     }
                 }
             }
@@ -1114,7 +1114,8 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
         if (lvl->player.whip_break_time > 0) {
             const float dir_offs = (PI * 0.6f * ((float)lvl->player.whip_break_time / PLAYER_WHIP_BREAK_TIME));
             const float dir = lvl->player.facing_right ? dir_offs - (PI * 0.1f) : PI + (PI * 0.1f) - dir_offs;
-            RenderSprite(rc, textures, ek_sprite_whip, lvl->player.pos, (s_v2){0.0f, 0.5f}, (s_v2){1.0f, 1.0f}, dir, WHITE);
+            const s_v2 pos_offs = LenDir(2.0f, dir);
+            RenderSprite(rc, textures, ek_sprite_whip, V2Sum(lvl->player.pos, pos_offs), (s_v2){0.0f, 0.5f}, (s_v2){1.0f, 1.0f}, dir, WHITE);
         }
 
         if (lvl->player.holding_item) {
