@@ -120,7 +120,7 @@ static s_sprite_info g_sprite_infos[] = {
     },
     [ek_sprite_rock_item] = {
         .tex = ek_texture_level,
-        .src_rect = {26, 18, 6, 6}
+        .src_rect = {26, 18, 4, 4}
     }
 };
 
