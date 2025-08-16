@@ -5,6 +5,8 @@
 
 // Check tiles to the right. If the topmost tile has a 
 
+#define POST_START_WAIT_TIME_MAX 30
+
 #define GRAVITY 0.4f
 
 #define PLAYER_MOVE_SPD 1.5f
@@ -287,6 +289,32 @@ static void SpawnEnemy(s_level* const lvl, const s_v2 pos, const e_enemy_type en
     }
 }
 
+static void SpawnParticle(s_level* const lvl, const s_v2 pos, const s_v2 vel) {
+    int pt_index = -1;
+
+    for (int i = 0; i < STATIC_ARRAY_LEN(lvl->particles); i++) {
+        const s_particle* const pt = STATIC_ARRAY_ELEM(lvl->particles, i);
+
+        if (!pt->active) {
+            pt_index = i;
+            break;
+        }
+    }
+
+    if (pt_index == -1) {
+        LOG_WARNING("out of particle space");
+        return;
+    }
+
+    s_particle* const pt = STATIC_ARRAY_ELEM(lvl->particles, pt_index);
+
+    *pt = (s_particle){
+        .pos = pos,
+        .vel = vel,
+        .active = true
+    };
+}
+
 static s_v2_s32 PlayerSize() {
     return RectS32Size(STATIC_ARRAY_ELEM(g_sprite_infos, ek_sprite_player)->src_rect);
 }
@@ -436,26 +464,34 @@ static void SpawnArrow(s_level* const lvl, const s_v2 pos, const bool right) {
 }
 
 static inline bool DoesPlayerExist(const s_level* const lvl) {
-    return lvl->started && lvl->hp > 0;
+    return lvl->started && lvl->post_start_wait_time == POST_START_WAIT_TIME_MAX && lvl->hp > 0;
 }
 
 e_level_update_end_result UpdateLevel(s_level* const lvl, const s_game_tick_context* const zfw_context) {
-    // LOL THIS IS SO BAD
-    for (int ty = 0; ty < TILEMAP_HEIGHT; ty++) {
-        for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
-            s_tile* const t = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, ty, tx);
+    const int player_hp_old = lvl->hp;
 
-            if (t->state != ek_tile_state_entrance) {
-                continue;
+    if (lvl->started) {
+        if (lvl->post_start_wait_time < POST_START_WAIT_TIME_MAX) {
+            lvl->post_start_wait_time++;
+
+            // LOL THIS IS SO BAD
+            for (int ty = 0; ty < TILEMAP_HEIGHT; ty++) {
+                for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
+                    s_tile* const t = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, ty, tx);
+
+                    if (t->state != ek_tile_state_entrance) {
+                        continue;
+                    }
+
+                    if (t->door_frame_time < DOOR_FRAME_INTERVAL * DOOR_FRAME_CNT) {
+                        t->door_frame_time++;
+                    }
+
+                    break; // only one i guess
+                }
             }
-
-            if (t->door_frame_time < DOOR_FRAME_INTERVAL * DOOR_FRAME_CNT) {
-                t->door_frame_time++;
-            }
-
-            break; // only one i guess
         }
-    } 
+    }
 
     //
     lvl->hitbox_cnt = 0;
@@ -595,7 +631,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, const s_game_tick_cont
             //
             if (IsKeyPressed(&zfw_context->input_context, ek_key_code_x)) {
                 const s_v2 hb_pos = {lvl->player.pos.x + (lvl->player.facing_right ? PLAYER_WHIP_OFFS : -PLAYER_WHIP_OFFS), lvl->player.pos.y};
-                SpawnHitbox(lvl, hb_pos, (s_v2){PlayerSize().x, PlayerSize().y}, (s_v2){0.5f, 0.5f}, 1, false);
+                SpawnHitbox(lvl, hb_pos, (s_v2){PlayerSize().x * 1.5f, PlayerSize().y}, (s_v2){0.5f, 0.5f}, 1, false);
             }
         }
 
@@ -733,7 +769,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, const s_game_tick_cont
                 }
             } else {
                 for (int j = 0; j < ENEMY_LIMIT; j++) {
-                    s_enemy* const enemy = STATIC_ARRAY_ELEM(lvl->enemies, i);
+                    s_enemy* const enemy = STATIC_ARRAY_ELEM(lvl->enemies, j);
 
                     if (!enemy->active) {
                         continue;
@@ -742,6 +778,13 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, const s_game_tick_cont
                     const s_rect enemy_collider = *STATIC_ARRAY_ELEM(enemy_colliders, j);
 
                     if (DoRectsInters(hb->rect, enemy_collider)) {
+                        const int pt_cnt = RandRangeS32Incl(3, 4);
+
+                        for (int i = 0; i < pt_cnt; i++) {
+                            const s_v2 vel = LenDir(RandRange(3.0f, 6.0f), RandPerc() * TAU);
+                            SpawnParticle(lvl, enemy->pos, vel);
+                        }
+
                         enemy->active = false;
                     }
                 }
@@ -755,8 +798,35 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, const s_game_tick_cont
     assert(lvl->hp >= 0);
 
     if (lvl->hp == 0) {
+        if (player_hp_old > 0) {
+            const int pt_cnt = RandRangeS32Incl(5, 6);
+
+            for (int i = 0; i < pt_cnt; i++) {
+                const s_v2 vel = LenDir(RandRange(3.0f, 6.0f), RandPerc() * TAU);
+                SpawnParticle(lvl, lvl->player.pos, vel);
+            }
+        }
+
         if (IsKeyPressed(&zfw_context->input_context, ek_key_code_x)) {
             return ek_level_update_end_result_restart;
+        }
+    }
+
+    //
+    // Particles
+    //
+    for (int i = 0; i < STATIC_ARRAY_LEN(lvl->particles); i++) {
+        s_particle* const pt = STATIC_ARRAY_ELEM(lvl->particles, i);
+
+        if (!pt->active) {
+            continue;
+        }
+
+        pt->vel = V2Scaled(pt->vel, 0.8f);
+        pt->pos = V2Sum(pt->pos, pt->vel);
+
+        if (Mag(pt->vel) < 0.01f) {
+            pt->active = false;
         }
     }
 
@@ -851,6 +921,21 @@ void RenderLevel(s_level* const lvl, const s_rendering_context* const rc, const 
         const s_arrow* const arrow = STATIC_ARRAY_ELEM(lvl->arrows, i);
         const s_rect rect = GenArrowRect(arrow->pos);
         RenderRectWithOutlineAndOpaqueFill(rc, rect, LIGHT_GRAY.rgb, BLACK, 1.0f);
+    }
+
+    //
+    // Particles
+    //
+    for (int i = 0; i < STATIC_ARRAY_LEN(lvl->particles); i++) {
+        const s_particle* const pt = STATIC_ARRAY_ELEM(lvl->particles, i);
+
+        if (!pt->active) {
+            continue;
+        }
+
+        const s_v2 size = {2.0f, 2.0f};
+        const s_rect rect = {pt->pos.x - size.x, pt->pos.y - size.y, size.x, size.y};
+        RenderRect(rc, rect, WHITE);
     }
 
     //

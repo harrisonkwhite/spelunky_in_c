@@ -3,7 +3,7 @@
 
 #include <zfwc.h>
 
-#define SHOW_DEBUG_HITBOXES 0
+#define SHOW_DEBUG_HITBOXES 1
 
 #define HP_LIMIT 3
 
@@ -216,6 +216,12 @@ typedef struct {
     bool enemy;
 } s_hitbox;
 
+typedef struct {
+    bool active;
+    s_v2 pos;
+    s_v2 vel;
+} s_particle;
+
 #define ENEMY_LIMIT 128
 
 typedef enum {
@@ -226,6 +232,7 @@ typedef enum {
 
 typedef struct {
     bool started;
+    int post_start_wait_time;
 
     int index;
 
@@ -234,6 +241,8 @@ typedef struct {
     s_player player;
 
     s_enemy enemies[ENEMY_LIMIT];
+
+    s_particle particles[128];
 
     s_arrow arrows[16];
     int arrow_cnt;
