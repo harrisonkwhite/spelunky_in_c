@@ -1,5 +1,19 @@
 #include "game.h"
 
+//
+// needed:
+//
+// - bombs, items that explode when thrown
+// - display of money, probably on bottom
+// - header message indicating new level
+// - bat enemy
+// - lots of level variations
+// - screenshake, show other tiles for out of bounds
+// - spikes
+// - item drop outlines shouild be in the UI not in world space
+//
+// - money shouldnt be a tile (not necessary)
+
 // climbing notes
 // you mark what specific tile to latch onto when pressing right and while higher than it. the moment the top of your collider is less than the tile, you are locked back up into a latch state. only latch onto tile with nothing above it.
 
@@ -37,7 +51,8 @@
 #define ITEM_DROP_PICKUP_MAG 1.0f
 
 #define DEATH_FADE_IN_LERP 0.4f
-#define DEATH_BG_ALPHA 0.8f
+
+#define GENERAL_UI_FADE_IN_LERP 0.4f
 
 static s_rect GenTileRect(const int tx, const int ty) {
     return (s_rect){tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE};
@@ -625,6 +640,8 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
                     break; // only one i guess
                 }
             }
+
+            lvl->general_ui_alpha = Lerp(lvl->general_ui_alpha, 1.0f, GENERAL_UI_FADE_IN_LERP);
         }
     }
 
@@ -1223,29 +1240,58 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
 }
 
 bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_state, const s_rendering_context* const rc, const s_font_group* const fonts, s_mem_arena* const temp_mem_arena) {
-#if 0
     //
-    // Control Display
-    //
-    if (lvl->control_display != ek_player_control_display_none) {
-    }
-#endif
-
-    //
-    // Stats
+    // Gold
     //
     if (DoesPlayerExist(lvl)) {
-        const s_rect stats_bg_rect = {0.0f, 0.0f, 320.0f, 180.0f};
-        const float stats_bg_rect_outline_size = VIEW_SCALE;
-        //RenderRect(rc, (s_rect){stats_bg_rect.x, stats_bg_rect.y, stats_bg_rect.width + stats_bg_rect_outline_size, stats_bg_rect.height + stats_bg_rect_outline_size}, WHITE);
-        RenderRect(rc, stats_bg_rect, (u_v4){BLACK.rgb, 0.8f});
+        const s_v2 bg_rect_size = {320.0f, 96.0f};
+        const s_rect bg_rect = {
+            0.0f,
+            rc->window_size.y - bg_rect_size.y,
+            bg_rect_size.x,
+            bg_rect_size.y
+        };
 
-        char stats_str[32];
-        snprintf(stats_str, sizeof(stats_str), "LVL: %d\nGOLD: $%d", run_state->lvl_num, run_state->gold_cnt);
+        const float bg_rect_outline_size = VIEW_SCALE;
 
-        const s_v2 stats_str_pos = {stats_bg_rect.width * 0.1f, stats_bg_rect.height * 0.1f};
+        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y - bg_rect_outline_size, bg_rect.width + bg_rect_outline_size, bg_rect_outline_size}, (u_v4){WHITE.rgb, lvl->general_ui_alpha});
+        RenderRect(rc, (s_rect){bg_rect.x + bg_rect.width, bg_rect.y - bg_rect_outline_size, bg_rect_outline_size, bg_rect_outline_size + bg_rect.height}, (u_v4){WHITE.rgb, lvl->general_ui_alpha});
+        RenderRect(rc, bg_rect, (u_v4){BLACK.rgb, BG_ALPHA * lvl->general_ui_alpha});
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(stats_str), fonts, ek_font_pixel_small, stats_str_pos, ALIGNMENT_TOP_LEFT, WHITE, temp_mem_arena)) {
+        char gold_str[16];
+        snprintf(gold_str, sizeof(gold_str), "$%d", run_state->gold_cnt);
+
+        const s_v2 gold_str_pos = {26.0f, rc->window_size.y - 12.0f};
+
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(gold_str), fonts, ek_font_pixel_med, gold_str_pos, ALIGNMENT_BOTTOM_LEFT, (u_v4){WHITE.rgb, lvl->general_ui_alpha}, temp_mem_arena)) {
+            return false;
+        }
+    }
+
+    //
+    // Level
+    //
+    if (DoesPlayerExist(lvl)) {
+        const s_v2 bg_rect_size = {240.0f, 96.0f};
+        const s_rect bg_rect = {
+            rc->window_size.x - bg_rect_size.x,
+            rc->window_size.y - bg_rect_size.y,
+            bg_rect_size.x,
+            bg_rect_size.y
+        };
+
+        const float bg_rect_outline_size = VIEW_SCALE;
+
+        RenderRect(rc, (s_rect){bg_rect.x - bg_rect_outline_size, bg_rect.y - bg_rect_outline_size, bg_rect.width + bg_rect_outline_size, bg_rect_outline_size}, (u_v4){WHITE.rgb, lvl->general_ui_alpha});
+        RenderRect(rc, (s_rect){bg_rect.x - bg_rect_outline_size, bg_rect.y - bg_rect_outline_size, bg_rect_outline_size, bg_rect_outline_size + bg_rect.height}, (u_v4){WHITE.rgb, lvl->general_ui_alpha});
+        RenderRect(rc, bg_rect, (u_v4){BLACK.rgb, lvl->general_ui_alpha * BG_ALPHA});
+
+        char lvl_str[16];
+        snprintf(lvl_str, sizeof(lvl_str), "LVL %d", run_state->lvl_num);
+
+        const s_v2 lvl_str_pos = {rc->window_size.x - 26.0f, rc->window_size.y - 12.0f};
+
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(lvl_str), fonts, ek_font_pixel_med, lvl_str_pos, ALIGNMENT_BOTTOM_RIGHT, (u_v4){WHITE.rgb, lvl->general_ui_alpha}, temp_mem_arena)) {
             return false;
         }
     }
@@ -1260,7 +1306,7 @@ bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_s
 
         RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y - bg_rect_outline_size, bg_rect.width, bg_rect_outline_size}, (u_v4){WHITE.rgb, lvl->death_alpha});
         RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y + bg_rect.height, bg_rect.width, bg_rect_outline_size}, (u_v4){WHITE.rgb, lvl->death_alpha});
-        RenderRect(rc, bg_rect, (u_v4){BLACK.rgb, lvl->death_alpha * DEATH_BG_ALPHA});
+        RenderRect(rc, bg_rect, (u_v4){BLACK.rgb, lvl->death_alpha * BG_ALPHA});
 
         if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("YOU DIED"), fonts, ek_font_pixel_large, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) - 40.0f}, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, lvl->death_alpha}, temp_mem_arena)) {
             return false;

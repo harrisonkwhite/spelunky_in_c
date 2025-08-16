@@ -1,7 +1,6 @@
 #include "game.h"
 
 #define TITLE_FLICKER_INTERVAL 10
-#define TITLE_BG_ALPHA 0.8f
 #define TITLE_FADE_LERP 0.4f
 
 #define FADE_ALPHA_IN_LERP 0.25f
@@ -159,7 +158,7 @@ bool RenderGame(const s_game_render_context* const zfw_context) {
         const float bg_rect_outline_size = VIEW_SCALE;
         RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y - bg_rect_outline_size, bg_rect.width, bg_rect_outline_size}, (u_v4){WHITE.rgb, game->title_alpha});
         RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y + bg_rect.height, bg_rect.width, bg_rect_outline_size}, (u_v4){WHITE.rgb, game->title_alpha});
-        RenderRect(rc, bg_rect, (u_v4){BLACK.rgb, TITLE_BG_ALPHA * game->title_alpha});
+        RenderRect(rc, bg_rect, (u_v4){BLACK.rgb, BG_ALPHA * game->title_alpha});
 
         if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("SPELUNKY (IN C)"), &game->fonts, ek_font_pixel_very_large, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) - 168.0f}, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, game->title_alpha}, zfw_context->temp_mem_arena)) {
             return false;

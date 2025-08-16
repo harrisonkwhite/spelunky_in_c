@@ -20,6 +20,8 @@
 
 #define VIEW_SCALE 8.0f
 
+#define BG_ALPHA 0.8f
+
 extern float g_view_scale;
 
 typedef enum {
@@ -322,6 +324,8 @@ typedef struct {
     e_player_control_display control_display;
 
     float death_alpha;
+
+    float general_ui_alpha;
 } s_level;
 
 typedef struct {
