@@ -319,7 +319,8 @@ typedef struct {
 
     int hp;
 
-    s_v2 view_pos;
+    s_v2 view_pos_no_shake;
+    float view_shake;
 
     e_player_control_display control_display;
 
