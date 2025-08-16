@@ -572,10 +572,6 @@ bool GenLevel(s_level* const lvl, const s_v2_s32 window_size, const s_game_run_s
 #endif
 
     //
-    const s_v2_s32 view_size = {window_size.x / VIEW_SCALE, window_size.y / VIEW_SCALE};
-    lvl->view_pos_no_shake.x = CLAMP(lvl->view_pos_no_shake.x, view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
-    lvl->view_pos_no_shake.y = CLAMP(lvl->view_pos_no_shake.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
-
     lvl->hp = HP_LIMIT;
 
     MoveToSolidTile(&lvl->player.pos, ek_cardinal_dir_down, -1.0f, (s_v2){PlayerSize().x, PlayerSize().y}, PLAYER_ORIGIN, &lvl->tilemap);
@@ -653,8 +649,8 @@ static void TriggerHorShooters(s_level* const lvl, const int tx_center, const in
     }
 }
 
-static void SpawnBloodParticles(s_level* const lvl, const s_v2 pos) {
-    const int pt_cnt = RandRangeS32Incl(5, 7);
+static void SpawnBloodParticles(s_level* const lvl, const s_v2 pos, const bool big) {
+    const int pt_cnt = big ? RandRangeS32Incl(5, 7) : RandRangeS32Incl(4, 5);
 
     const float base_dir_offs = RandPerc() * TAU;
 
@@ -670,7 +666,7 @@ static void SpawnBloodParticles(s_level* const lvl, const s_v2 pos) {
 
         pt->blend = RED;
 
-        const float scale = RandRange(1.0f, 2.0f);
+        const float scale = RandRange(1.0f, 1.5f);
         pt->scale = (s_v2){scale, scale};
     }
 }
@@ -1143,7 +1139,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
 
                     if (DoRectsInters(hb->rect, enemy_collider)) {
                         Shake(lvl, 2.0f);
-                        SpawnBloodParticles(lvl, enemy->pos);
+                        SpawnBloodParticles(lvl, enemy->pos, false);
                         enemy->active = false;
                     }
                 }
@@ -1158,7 +1154,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
 
     if (lvl->hp == 0) {
         if (player_hp_old > 0) {
-            SpawnBloodParticles(lvl, lvl->player.pos);
+            SpawnBloodParticles(lvl, lvl->player.pos, true);
             Shake(lvl, 3.0f);
         }
 
@@ -1195,21 +1191,11 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
     //
     // View
     //
-    s_v2 view_dest = {
-        lvl->player.pos.x,
-        lvl->player.pos.y
-    };
-
-    const s_v2_s32 view_size = {zfw_context->window_state.size.x / VIEW_SCALE, zfw_context->window_state.size.y / VIEW_SCALE};
-    view_dest.x = CLAMP(view_dest.x, view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
-    view_dest.y = CLAMP(view_dest.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
+    const s_v2 view_dest = lvl->player.pos;
 
     const float view_lerp_factor = 0.3f;
     lvl->view_pos_no_shake.x = Lerp(lvl->view_pos_no_shake.x, view_dest.x, view_lerp_factor);
     lvl->view_pos_no_shake.y = Lerp(lvl->view_pos_no_shake.y, view_dest.y, view_lerp_factor);
-
-    lvl->view_pos_no_shake.x = CLAMP(lvl->view_pos_no_shake.x, view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
-    lvl->view_pos_no_shake.y = CLAMP(lvl->view_pos_no_shake.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
 
     lvl->view_shake *= 0.8f;
 
@@ -1361,30 +1347,44 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
     //
     // Tilemap (Front)
     //
-    for (int ty = -1; ty <= TILEMAP_HEIGHT; ty++) {
-        for (int tx = -1; tx <= TILEMAP_WIDTH; tx++) {
-            const s_v2 pos = {tx * TILE_SIZE, ty * TILE_SIZE};
+    {
+        const s_v2_s32 top_left = {
+            floorf((view_pos.x - (view_size.x / 2.0f)) / TILE_SIZE),
+            floorf((view_pos.y - (view_size.y / 2.0f)) / TILE_SIZE)
+        };
 
-            if (tx == -1 || ty == -1 || tx == TILEMAP_WIDTH || ty == TILEMAP_HEIGHT) {
-                RenderSprite(rc, textures, ek_sprite_dirt_tile, pos, (s_v2){0}, (s_v2){1.0f, 1.0f}, 0.0f, WHITE);
-                continue;
+        const s_v2_s32 bottom_right = {
+            ceilf((view_pos.x + (view_size.x / 2.0f)) / TILE_SIZE),
+            ceilf((view_pos.y + (view_size.y / 2.0f)) / TILE_SIZE)
+        };
+
+        LOG("%d", top_left.x);
+
+        for (int ty = top_left.y; ty < bottom_right.y; ty++) {
+            for (int tx = top_left.x; tx < bottom_right.x; tx++) {
+                const s_v2 pos = {tx * TILE_SIZE, ty * TILE_SIZE};
+
+                if (tx < 0 || ty < 0 || tx >= TILEMAP_WIDTH || ty >= TILEMAP_HEIGHT) {
+                    RenderSprite(rc, textures, ek_sprite_dirt_tile, pos, (s_v2){0}, (s_v2){1.0f, 1.0f}, 0.0f, WHITE);
+                    continue;
+                }
+
+                const s_tile* const t = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, ty, tx);
+
+                if (t->state == ek_tile_state_empty || g_tile_state_is_behind_ents[t->state]) {
+                    continue;
+                }
+
+                e_sprite spr;
+
+                if (t->state == ek_tile_state_shooter) {
+                    spr = t->shooter_facing_right ? ek_sprite_shooter_tile_right : ek_sprite_shooter_tile_left;
+                } else {
+                    spr = *STATIC_ARRAY_ELEM(g_tile_state_sprs, t->state);
+                }
+
+                RenderSprite(rc, textures, spr, pos, (s_v2){0}, (s_v2){1.0f, 1.0f}, 0.0f, WHITE);
             }
-
-            const s_tile* const t = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, ty, tx);
-
-            if (t->state == ek_tile_state_empty || g_tile_state_is_behind_ents[t->state]) {
-                continue;
-            }
-
-            e_sprite spr;
-
-            if (t->state == ek_tile_state_shooter) {
-                spr = t->shooter_facing_right ? ek_sprite_shooter_tile_right : ek_sprite_shooter_tile_left;
-            } else {
-                spr = *STATIC_ARRAY_ELEM(g_tile_state_sprs, t->state);
-            }
-
-            RenderSprite(rc, textures, spr, pos, (s_v2){0}, (s_v2){1.0f, 1.0f}, 0.0f, WHITE);
         }
     }
 

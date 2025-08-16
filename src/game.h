@@ -20,7 +20,7 @@
 
 #define VIEW_SCALE 8.0f
 
-#define BG_ALPHA 0.8f
+#define BG_ALPHA 0.9f
 
 extern float g_view_scale;
 
