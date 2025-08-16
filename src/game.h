@@ -18,6 +18,8 @@
 
 #define GOLD_INCR 250
 
+#define VIEW_SCALE 8.0f
+
 extern float g_view_scale;
 
 typedef enum {
@@ -260,6 +262,8 @@ typedef struct {
     bool active;
     s_v2 pos;
     s_v2 vel;
+    float alpha;
+    float rot;
 } s_particle;
 
 #define ENEMY_LIMIT 128
@@ -290,6 +294,7 @@ typedef struct {
     s_enemy enemies[ENEMY_LIMIT];
 
     s_item_drop item_drops[32];
+    int item_drop_hovered_index;
 
     s_particle particles[128];
 
@@ -311,11 +316,18 @@ typedef struct {
     int gold_cnt;
 } s_game_run_state;
 
+typedef enum {
+    ek_fade_reason_restart,
+} e_fade_reason;
+
 typedef struct {
     s_texture_group textures;
     s_font_group fonts;
     s_surface lvl_surf;
     bool title;
+    bool title_flicker;
+    int title_flicker_time;
+    float fade_alpha;
     s_level lvl;
     s_game_run_state run_state;
 } s_game;

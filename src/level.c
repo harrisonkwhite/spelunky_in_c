@@ -10,7 +10,7 @@
 
 #define GRAVITY 0.4f
 
-#define PARALLAX 0.1f
+#define PARALLAX 0.2f
 
 #define PLAYER_MOVE_SPD 1.5f
 #define PLAYER_MOVE_SPD_LERP 0.3f
@@ -19,7 +19,7 @@
 #define PLAYER_ORIGIN (s_v2){0.5f, 0.5f}
 #define PLAYER_WHIP_OFFS 5.0f
 #define PLAYER_WHIP_BREAK_TIME 5
-#define PLAYER_THROW_SPD (s_v2){3.0f, 2.5f}
+#define PLAYER_THROW_SPD (s_v2){3.5f, 2.0f}
 
 #define ARROW_SIZE (s_v2_s32){TILE_SIZE, TILE_SIZE / 2}
 #define ARROW_ORIGIN (s_v2){0.5f, 0.5f}
@@ -34,6 +34,7 @@
 #define DOOR_FRAME_CNT 4
 
 #define ITEM_DROP_ORIGIN (s_v2){0.5f, 0.5f}
+#define ITEM_DROP_PICKUP_MAG 1.0f
 
 static s_rect GenTileRect(const int tx, const int ty) {
     return (s_rect){tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE};
@@ -128,7 +129,7 @@ static void MoveToSolidTile(s_v2* const pos, const e_cardinal_dir dir, const flo
     const s_v2 pos_start = *pos;
 
     s_v2 jump;
-    const float jump_dist = 1.0f / g_view_scale;
+    const float jump_dist = 1.0f / VIEW_SCALE;
 
     switch (dir) {
         case ek_cardinal_dir_right:
@@ -302,7 +303,7 @@ static void SpawnEnemy(s_level* const lvl, const s_v2 pos, const e_enemy_type en
     }
 }
 
-static void SpawnParticle(s_level* const lvl, const s_v2 pos, const s_v2 vel) {
+static void SpawnParticle(s_level* const lvl, const s_v2 pos, const s_v2 vel, const float rot) {
     int pt_index = -1;
 
     for (int i = 0; i < STATIC_ARRAY_LEN(lvl->particles); i++) {
@@ -324,6 +325,8 @@ static void SpawnParticle(s_level* const lvl, const s_v2 pos, const s_v2 vel) {
     *pt = (s_particle){
         .pos = pos,
         .vel = vel,
+        .rot = rot,
+        .alpha = 1.0f,
         .active = true
     };
 }
@@ -503,7 +506,7 @@ bool GenLevel(s_level* const lvl, const s_v2_s32 window_size, s_mem_arena* const
     //
     lvl->view_pos = lvl->player.pos;
 
-    const s_v2_s32 view_size = {window_size.x / g_view_scale, window_size.y / g_view_scale};
+    const s_v2_s32 view_size = {window_size.x / VIEW_SCALE, window_size.y / VIEW_SCALE};
     lvl->view_pos.x = CLAMP(lvl->view_pos.x, view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
     lvl->view_pos.y = CLAMP(lvl->view_pos.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
 
@@ -543,6 +546,8 @@ static inline bool DoesPlayerExist(const s_level* const lvl) {
 }
 
 e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* const run_state, const s_game_tick_context* const zfw_context) {
+    lvl->item_drop_hovered_index = -1;
+
     const int player_hp_old = lvl->hp;
 
     if (lvl->started) {
@@ -888,7 +893,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
                 const s_rect collider = GenItemDropRect(drop->pos, drop->type);
 
                 if (CheckSolidTileCollision((s_rect){collider.x, collider.y + 1.0f, collider.width, collider.height}, 1.0f, &lvl->tilemap, false, false)) {
-                    drop->vel.x = Lerp(drop->vel.x, 0.0f, 0.2f);
+                    drop->vel.x = Lerp(drop->vel.x, 0.0f, 0.15f);
                 }
             }
 
@@ -898,19 +903,19 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
 
             drop->pos = V2Sum(drop->pos, drop->vel);
 
-            if (Mag(drop->vel) >= 1.0f) {
+            if (Mag(drop->vel) >= ITEM_DROP_PICKUP_MAG) {
                 SpawnHitbox(lvl, drop->pos, ItemDropSize(drop->pos, drop->type), ITEM_DROP_ORIGIN, 1, false);
             }
         }
 
         // Item drop collection
-        if (!lvl->player.holding_item && IsKeyPressed(&zfw_context->input_context, ek_key_code_z) && !lvl->player.climbing && !lvl->player.latching) {
+        if (!lvl->player.holding_item) {
             const s_rect player_collider = GenPlayerRect(lvl->player.pos);
 
             for (int i = 0; i < STATIC_ARRAY_LEN(lvl->item_drops); i++) {
                 s_item_drop* const drop = STATIC_ARRAY_ELEM(lvl->item_drops, i);
 
-                if (!drop->active) {
+                if (!drop->active || Mag(drop->vel) >= ITEM_DROP_PICKUP_MAG) {
                     continue;
                 }
 
@@ -918,9 +923,14 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
                 const s_rect drop_collider = GenItemDropRect(drop->pos, drop->type);
 
                 if (DoRectsInters(player_collider, drop_collider)) {
-                    lvl->player.holding_item = true;
-                    lvl->player.item_type_held = drop->type;
-                    drop->active = false;
+                    lvl->item_drop_hovered_index = i;
+
+                    if (IsKeyPressed(&zfw_context->input_context, ek_key_code_z)) {
+                        lvl->player.holding_item = true;
+                        lvl->player.item_type_held = drop->type;
+                        drop->active = false;
+                    }
+
                     break;
                 }
             }
@@ -967,7 +977,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
 
                         for (int i = 0; i < pt_cnt; i++) {
                             const s_v2 vel = LenDir(RandRange(3.0f, 6.0f), RandPerc() * TAU);
-                            SpawnParticle(lvl, enemy->pos, vel);
+                            SpawnParticle(lvl, enemy->pos, vel, TAU * RandPerc());
                         }
 
                         enemy->active = false;
@@ -988,7 +998,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
 
             for (int i = 0; i < pt_cnt; i++) {
                 const s_v2 vel = LenDir(RandRange(3.0f, 6.0f), RandPerc() * TAU);
-                SpawnParticle(lvl, lvl->player.pos, vel);
+                SpawnParticle(lvl, lvl->player.pos, vel, RandPerc() * TAU);
             }
         }
 
@@ -1011,7 +1021,11 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
         pt->pos = V2Sum(pt->pos, pt->vel);
 
         if (Mag(pt->vel) < 0.01f) {
-            pt->active = false;
+            pt->alpha *= 0.4f;
+
+            if (pt->alpha < 0.01f) {
+                pt->active = false;
+            }
         }
     }
 
@@ -1023,7 +1037,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
         lvl->player.pos.y
     };
 
-    const s_v2_s32 view_size = {zfw_context->window_state.size.x / g_view_scale, zfw_context->window_state.size.y / g_view_scale};
+    const s_v2_s32 view_size = {zfw_context->window_state.size.x / VIEW_SCALE, zfw_context->window_state.size.y / VIEW_SCALE};
     view_dest.x = CLAMP(view_dest.x, view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
     view_dest.y = CLAMP(view_dest.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
 
@@ -1038,11 +1052,11 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
 }
 
 void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, const s_texture_group* const textures) {
-    const s_v2_s32 view_size = {rc->window_size.x / g_view_scale, rc->window_size.y / g_view_scale};
+    const s_v2_s32 view_size = {rc->window_size.x / VIEW_SCALE, rc->window_size.y / VIEW_SCALE};
 
     s_matrix_4x4 lvl_view_mat = IdentityMatrix4x4();
-    TranslateMatrix4x4(&lvl_view_mat, (s_v2){(-lvl->view_pos.x + (view_size.x / 2.0f)) * g_view_scale, (-lvl->view_pos.y + view_size.y * 0.5f) * g_view_scale});
-    ScaleMatrix4x4(&lvl_view_mat, g_view_scale);
+    TranslateMatrix4x4(&lvl_view_mat, (s_v2){(-lvl->view_pos.x + (view_size.x / 2.0f)) * VIEW_SCALE, (-lvl->view_pos.y + view_size.y * 0.5f) * VIEW_SCALE});
+    ScaleMatrix4x4(&lvl_view_mat, VIEW_SCALE);
     SetViewMatrix(rc, &lvl_view_mat);
 
     //
@@ -1124,6 +1138,12 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
             continue;
         }
 
+        if (lvl->item_drop_hovered_index == i) {
+            // should use shader for this but im outta time
+            const s_rect drop_rect = GenItemDropRect(drop->pos, drop->type);
+            RenderRect(rc, (s_rect){drop_rect.x - 1.0f, drop_rect.y - 1.0f, drop_rect.width + 2.0f, drop_rect.height + 2.0f}, WHITE);
+        }
+
         RenderSprite(rc, textures, *STATIC_ARRAY_ELEM(g_item_type_sprs, drop->type), drop->pos, ITEM_DROP_ORIGIN, (s_v2){1.0f, 1.0f}, 0.0f, WHITE);
     }
 
@@ -1183,7 +1203,7 @@ bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_s
     //
     if (DoesPlayerExist(lvl)) {
         const s_rect stats_bg_rect = {0.0f, 0.0f, 320.0f, 180.0f};
-        const float stats_bg_rect_outline_size = g_view_scale;
+        const float stats_bg_rect_outline_size = VIEW_SCALE;
         //RenderRect(rc, (s_rect){stats_bg_rect.x, stats_bg_rect.y, stats_bg_rect.width + stats_bg_rect_outline_size, stats_bg_rect.height + stats_bg_rect_outline_size}, WHITE);
         RenderRect(rc, stats_bg_rect, (u_v4){BLACK.rgb, 0.8f});
 
@@ -1203,7 +1223,7 @@ bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_s
     if (lvl->hp == 0) {
         const float bg_height = 200.0f;
         const s_rect bg_rect = {0.0f, (rc->window_size.y - bg_height) / 2.0f, rc->window_size.x, bg_height};
-        const float bg_rect_outline_size = g_view_scale;
+        const float bg_rect_outline_size = VIEW_SCALE;
         RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y - bg_rect_outline_size, bg_rect.width, bg_rect.height + (bg_rect_outline_size * 2.0f)}, WHITE);
         RenderRect(rc, bg_rect, BLACK);
 
