@@ -3,14 +3,14 @@
 float g_view_scale;
 
 static void RefreshViewScale(const s_v2_s32 window_size) {
-    g_view_scale = 4.0f;
+    g_view_scale = 8.0f;
 
     if (window_size.x > 1600 || window_size.y > 900) {
-        g_view_scale = 5.0f;
+        g_view_scale = 10.0f;
     }
 
     if (window_size.x > 1920 || window_size.y > 1080) {
-        g_view_scale = 6.0f;
+        g_view_scale = 12.0f;
     }
 }
 

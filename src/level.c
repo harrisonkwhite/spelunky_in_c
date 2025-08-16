@@ -5,14 +5,14 @@
 
 // Check tiles to the right. If the topmost tile has a 
 
-#define GRAVITY 0.2f
+#define GRAVITY 0.15f
 
-#define PLAYER_MOVE_SPD 1.5f
+#define PLAYER_MOVE_SPD 1.0f
 #define PLAYER_MOVE_SPD_LERP 0.2f
-#define PLAYER_JUMP_HEIGHT 3.0f
+#define PLAYER_JUMP_HEIGHT 2.0f
 #define PLAYER_CLIMB_SPD 1.0f
 #define PLAYER_ORIGIN (s_v2){0.5f, 0.5f}
-#define PLAYER_WHIP_OFFS 10.0f
+#define PLAYER_WHIP_OFFS 5.0f
 
 #define ARROW_SIZE (s_v2_s32){TILE_SIZE, TILE_SIZE / 2}
 #define ARROW_ORIGIN (s_v2){0.5f, 0.5f}
@@ -747,6 +747,16 @@ void RenderLevel(s_level* const lvl, const s_rendering_context* const rc, const 
     ScaleMatrix4x4(&lvl_view_mat, g_view_scale);
 #endif
     SetViewMatrix(rc, &lvl_view_mat);
+
+    //
+    // Background
+    //
+    for (int ty = 0; ty < TILEMAP_HEIGHT; ty++) {
+        for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
+            const s_v2 pos = {tx * TILE_SIZE, ty * TILE_SIZE};
+            RenderSprite(rc, textures, ek_sprite_bg, pos, (s_v2){0}, (s_v2){1.0f, 1.0f}, 0.0f, GRAY);
+        }
+    }
 
     //
     // Tilemap

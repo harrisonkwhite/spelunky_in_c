@@ -15,7 +15,7 @@
 #define TILEMAP_WIDTH (TILEMAP_ROOM_WIDTH * TILEMAP_ROOMS_HOR)
 #define TILEMAP_HEIGHT (TILEMAP_ROOM_HEIGHT * TILEMAP_ROOMS_VERT)
 
-#define TILE_SIZE 16
+#define TILE_SIZE 8
 
 #define GOLD_INCR 250
 
@@ -41,7 +41,8 @@ typedef enum {
     ek_sprite_entrance_tile,
     ek_sprite_exit_tile,
     ek_sprite_player,
-    ek_sprite_snake_enemy
+    ek_sprite_snake_enemy,
+    ek_sprite_bg
 } e_sprite;
 
 typedef struct {
@@ -52,35 +53,39 @@ typedef struct {
 static s_sprite_info g_sprite_infos[] = {
     [ek_sprite_dirt_tile] = {
         .tex = ek_texture_level,
-        .src_rect = {0, 0, 16, 16}
+        .src_rect = {0, 0, 8, 8}
     },
     [ek_sprite_ladder_tile] = {
         .tex = ek_texture_level,
-        .src_rect = {16, 0, 16, 16}
+        .src_rect = {8, 0, 8, 8}
     },
     [ek_sprite_gold_tile] = {
         .tex = ek_texture_level,
-        .src_rect = {32, 0, 16, 16}
+        .src_rect = {16, 0, 8, 8}
     },
     [ek_sprite_shooter_tile] = {
         .tex = ek_texture_level,
-        .src_rect = {48, 0, 16, 16}
+        .src_rect = {24, 0, 8, 8}
     },
     [ek_sprite_entrance_tile] = {
         .tex = ek_texture_level,
-        .src_rect = {0, 16, 16, 16}
+        .src_rect = {0, 8, 8, 8}
     },
     [ek_sprite_exit_tile] = {
         .tex = ek_texture_level,
-        .src_rect = {16, 16, 16, 16}
+        .src_rect = {8, 8, 8, 8}
     },
     [ek_sprite_player] = {
         .tex = ek_texture_level,
-        .src_rect = {1, 33, 14, 14}
+        .src_rect = {1, 17, 6, 6}
     },
     [ek_sprite_snake_enemy] = {
         .tex = ek_texture_level,
-        .src_rect = {17, 33, 14, 14}
+        .src_rect = {9, 17, 6, 6}
+    },
+    [ek_sprite_bg] = {
+        .tex = ek_texture_level,
+        .src_rect = {0, 24, 8, 8}
     }
 };
 
@@ -92,10 +97,10 @@ typedef enum {
 } e_font;
 
 static const s_char_array_view g_font_file_paths[] = {
-    [ek_font_roboto_32] = ARRAY_FROM_STATIC("assets/fonts/roboto_32"),
-    [ek_font_roboto_48] = ARRAY_FROM_STATIC("assets/fonts/roboto_48"),
-    [ek_font_roboto_64] = ARRAY_FROM_STATIC("assets/fonts/roboto_64"),
-    [ek_font_roboto_96] = ARRAY_FROM_STATIC("assets/fonts/roboto_96")
+    [ek_font_roboto_32] = ARRAY_FROM_STATIC("assets/fonts/medodica_32"),
+    [ek_font_roboto_48] = ARRAY_FROM_STATIC("assets/fonts/medodica_48"),
+    [ek_font_roboto_64] = ARRAY_FROM_STATIC("assets/fonts/medodica_64"),
+    [ek_font_roboto_96] = ARRAY_FROM_STATIC("assets/fonts/medodica_96")
 };
 
 typedef enum {
