@@ -56,8 +56,14 @@ static void Shake(s_level* const lvl, const float amount) {
     lvl->view_shake = MAX(lvl->view_shake, amount);
 }
 
-static s_rect GenTileRect(const int tx, const int ty) {
-    return (s_rect){tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE};
+static s_rect GenTileCollider(const int tx, const int ty, const e_tile_state ts) {
+    if (ts == ek_tile_state_spike) {
+        return (s_rect){tx * TILE_SIZE, (ty * TILE_SIZE) + 4, TILE_SIZE, TILE_SIZE - 4};
+    } else if (ts == ek_tile_state_gold) {
+        return (s_rect){(tx * TILE_SIZE) + 1, (ty * TILE_SIZE) + 6, TILE_SIZE - 2, TILE_SIZE - 6};
+    } else {
+        return (s_rect){tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE};
+    }
 }
 
 static bool CheckSolidTileCollision(const s_rect rect, const float y_shift, const s_tilemap* const tm, const bool ignore_shooters, const bool ignore_platforms) {
@@ -79,7 +85,7 @@ static bool CheckSolidTileCollision(const s_rect rect, const float y_shift, cons
                 continue;
             }
 
-            const s_rect tr = GenTileRect(tx, ty);
+            const s_rect tr = GenTileCollider(tx, ty, ts);
 
             if (DoRectsInters(rect, tr)) {
                 if (is_platform && rect.y + rect.height - y_shift > tr.y) {
@@ -103,7 +109,7 @@ static bool CheckDeathPlatformCollision(const s_rect rect, const float y_shift, 
                 continue;
             }
 
-            const s_rect tr = GenTileRect(tx, ty);
+            const s_rect tr = GenTileCollider(tx, ty, ts);
 
             if (DoRectsInters(rect, tr)) {
                 if (rect.y + rect.height - y_shift > tr.y) {
@@ -129,7 +135,7 @@ static bool CheckTileCollisionWithState(s_v2_s32* const tp, const s_rect rect, c
                 continue;
             }
 
-            const s_rect tr = GenTileRect(tx, ty);
+            const s_rect tr = GenTileCollider(tx, ty, ts);
 
             /*if (*STATIC_ARRAY_ELEM(g_tile_states_platform, ts) && rect.y + rect.height > tr.y) {
                 continue;
@@ -753,7 +759,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
 
                     const s_tile* const t = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, ty, tx);
 
-                    const s_rect tile_rect = GenTileRect(tx, ty);
+                    const s_rect tile_rect = GenTileCollider(tx, ty, t->state);
 
                     if (move_axis == 1) {
                         if (rect.x + rect.width + 1.0f < tile_rect.x) {
@@ -830,7 +836,8 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
             //
             if (!lvl->player.climbing && possible_latch_targ.x != -1 && possible_latch_targ.y != -1) {
                 const s_rect new_rect = GenPlayerRect(lvl->player.pos);
-                const s_rect possible_latch_targ_tile_rect = GenTileRect(possible_latch_targ.x, possible_latch_targ.y);
+                const e_tile_state ts = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, possible_latch_targ.y, possible_latch_targ.x)->state;
+                const s_rect possible_latch_targ_tile_rect = GenTileCollider(possible_latch_targ.x, possible_latch_targ.y, ts);
 
                 if (new_rect.y >= possible_latch_targ_tile_rect.y) {
                     lvl->player.pos.x = roundf(lvl->player.pos.x);

@@ -120,7 +120,7 @@ static s_sprite_info g_sprite_infos[] = {
     },
     [ek_sprite_arrow] = {
         .tex = ek_texture_level,
-        .src_rect = {9, 26, 6, 4}
+        .src_rect = {9, 27, 6, 2}
     },
     [ek_sprite_whip] = {
         .tex = ek_texture_level,
