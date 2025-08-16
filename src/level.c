@@ -406,6 +406,9 @@ bool GenLevel(s_level* const lvl, const s_v2_s32 window_size, s_mem_arena* const
                         STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_gold;
                     } else if (tex_px_r == 0 && tex_px_g == 255 && tex_px_b == 0 && tex_px_a == 255) {
                         STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_shooter;
+                    } else if (tex_px_r == 0 && tex_px_g == 255 && tex_px_b == 150 && tex_px_a == 255) {
+                        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_shooter;
+                        STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->shooter_facing_right = true;
                     } else if (tex_px_r == 0 && tex_px_g == 0 && tex_px_b == 255 && tex_px_a == 255) {
                         STATIC_ARRAY_2D_ELEM(tm->tiles, ty, tx)->state = ek_tile_state_entrance;
                         lvl->player.pos = tile_center_in_lvl;
@@ -464,7 +467,7 @@ static void SpawnArrow(s_level* const lvl, const s_v2 pos, const bool right) {
     if (lvl->arrow_cnt < STATIC_ARRAY_LEN(lvl->arrows)) {
         s_arrow* const arrow = STATIC_ARRAY_ELEM(lvl->arrows, lvl->arrow_cnt);
         arrow->pos = pos;
-        arrow->right = false;
+        arrow->right = right;
         lvl->arrow_cnt++;
     } else {
         assert(false);
@@ -691,7 +694,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
             }
 
             // Check to player left.
-            for (int tx = player_tile_x + 1; ; tx++) {
+            for (int tx = player_tile_x - 1; ; tx--) {
                 s_tile* const tile = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, player_tile_y, tx);
 
                 if (tile->state == ek_tile_state_shooter && !tile->shooter_shot && tile->shooter_facing_right) {
@@ -917,12 +920,18 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
 
             const s_v2 pos = {tx * TILE_SIZE, ty * TILE_SIZE};
 
+            e_sprite spr;
+
             if (t->state == ek_tile_state_entrance || t->state == ek_tile_state_exit) {
                 const int frame_index = MIN(t->door_frame_time / DOOR_FRAME_INTERVAL, DOOR_FRAME_CNT - 1);
-                RenderSprite(rc, textures, ek_sprite_door_tile_0 + frame_index, pos, (s_v2){0}, (s_v2){1.0f, 1.0f}, 0.0f, WHITE);
+                spr = ek_sprite_door_tile_0 + frame_index;
+            } else if (t->state == ek_tile_state_shooter) {
+                spr = t->shooter_facing_right ? ek_sprite_shooter_tile_right : ek_sprite_shooter_tile_left;
             } else {
-                RenderSprite(rc, textures, *STATIC_ARRAY_ELEM(g_tile_state_sprs, t->state), pos, (s_v2){0}, (s_v2){1.0f, 1.0f}, 0.0f, WHITE);
+                spr = *STATIC_ARRAY_ELEM(g_tile_state_sprs, t->state);
             }
+
+            RenderSprite(rc, textures, spr, pos, (s_v2){0}, (s_v2){1.0f, 1.0f}, 0.0f, WHITE);
         }
     }
 
@@ -952,8 +961,7 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
     //
     for (int i = 0; i < lvl->arrow_cnt; i++) {
         const s_arrow* const arrow = STATIC_ARRAY_ELEM(lvl->arrows, i);
-        const s_rect rect = GenArrowRect(arrow->pos);
-        RenderRectWithOutlineAndOpaqueFill(rc, rect, LIGHT_GRAY.rgb, BLACK, 1.0f);
+        RenderSprite(rc, textures, ek_sprite_arrow, arrow->pos, ARROW_ORIGIN, (s_v2){arrow->right ? -1.0f : 1.0f, 1.0f}, 0.0f, WHITE);
     }
 
     //

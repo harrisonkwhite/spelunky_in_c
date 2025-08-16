@@ -3,7 +3,7 @@
 
 #include <zfwc.h>
 
-#define SHOW_DEBUG_HITBOXES 1
+#define SHOW_DEBUG_HITBOXES 0
 
 #define HP_LIMIT 3
 
@@ -37,7 +37,8 @@ typedef enum {
     ek_sprite_ladder_tile,
     ek_sprite_ladder_platform_tile,
     ek_sprite_gold_tile,
-    ek_sprite_shooter_tile,
+    ek_sprite_shooter_tile_left,
+    ek_sprite_shooter_tile_right,
     ek_sprite_door_tile_0,
     ek_sprite_door_tile_1,
     ek_sprite_door_tile_2,
@@ -45,7 +46,8 @@ typedef enum {
     ek_sprite_exit_tile,
     ek_sprite_player,
     ek_sprite_snake_enemy,
-    ek_sprite_bg
+    ek_sprite_bg,
+    ek_sprite_arrow
 } e_sprite;
 
 typedef struct {
@@ -70,9 +72,13 @@ static s_sprite_info g_sprite_infos[] = {
         .tex = ek_texture_level,
         .src_rect = {16, 0, 8, 8}
     },
-    [ek_sprite_shooter_tile] = {
+    [ek_sprite_shooter_tile_left] = {
         .tex = ek_texture_level,
         .src_rect = {24, 0, 8, 8}
+    },
+    [ek_sprite_shooter_tile_right] = {
+        .tex = ek_texture_level,
+        .src_rect = {32, 0, 8, 8}
     },
     [ek_sprite_door_tile_0] = {
         .tex = ek_texture_level,
@@ -101,6 +107,10 @@ static s_sprite_info g_sprite_infos[] = {
     [ek_sprite_bg] = {
         .tex = ek_texture_level,
         .src_rect = {0, 24, 8, 8}
+    },
+    [ek_sprite_arrow] = {
+        .tex = ek_texture_level,
+        .src_rect = {9, 26, 6, 4}
     }
 };
 
@@ -158,7 +168,7 @@ static e_sprite g_tile_state_sprs[] = {
     [ek_tile_state_ladder] = ek_sprite_ladder_tile,
     [ek_tile_state_ladder_platform] = ek_sprite_ladder_platform_tile,
     [ek_tile_state_gold] = ek_sprite_gold_tile,
-    [ek_tile_state_shooter] = ek_sprite_shooter_tile,
+    [ek_tile_state_shooter] = ek_sprite_shooter_tile_left,
     [ek_tile_state_entrance] = ek_sprite_door_tile_0,
     [ek_tile_state_exit] = ek_sprite_door_tile_3
 };

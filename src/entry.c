@@ -6,7 +6,6 @@ int main() {
     const s_game_info game_info = {
         .window_init_size = {1280, 720},
         .window_title = ARRAY_FROM_STATIC("Spelunky in C"),
-        .window_flags = ek_window_flags_resizable,
 
         .targ_ticks_per_sec = 30,
 
