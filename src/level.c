@@ -31,16 +31,15 @@
 #define PLAYER_ORIGIN (s_v2){0.5f, 0.5f}
 #define PLAYER_WHIP_OFFS 5.0f
 #define PLAYER_WHIP_BREAK_TIME 5
-#define PLAYER_THROW_SPD (s_v2){3.5f, 2.0f}
+#define PLAYER_THROW_SPD (s_v2){3.5f, 1.0f}
 
 #define ARROW_SIZE (s_v2_s32){TILE_SIZE, TILE_SIZE / 2}
 #define ARROW_ORIGIN (s_v2){0.5f, 0.5f}
 #define ARROW_SPD 4.0f
 
 #define SNAKE_ORIGIN (s_v2){0.5f, 0.5f}
-#define SNAKE_MOVE_SPD 1.0f
-#define SNAKE_MOVE_SPD_LERP 0.1f
-#define SNAKE_AHEAD_DIST 4.0f
+#define SNAKE_MOVE_SPD 0.5f
+#define SNAKE_MOVE_SPD_LERP 0.2f
 
 #define DOOR_FRAME_INTERVAL 5
 #define DOOR_FRAME_CNT 4
@@ -871,7 +870,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
                         lvl->player.whip_break_time = PLAYER_WHIP_BREAK_TIME;
 
                         const s_v2 hb_pos = {lvl->player.pos.x + (lvl->player.facing_right ? PLAYER_WHIP_OFFS : -PLAYER_WHIP_OFFS), lvl->player.pos.y - 1.0f};
-                        SpawnHitbox(lvl, hb_pos, (s_v2){PlayerSize().x * 1.75f, PlayerSize().y * 1.25}, (s_v2){0.5f, 0.5f}, 1, false);
+                        SpawnHitbox(lvl, hb_pos, (s_v2){PlayerSize().x * 2.0f, PlayerSize().y * 1.25}, (s_v2){0.5f, 0.5f}, 1, false);
 
                         Shake(lvl, 0.25f);
                     }
@@ -909,14 +908,32 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
         switch (enemy->type) {
             case ek_enemy_type_snake:
                 {
+                    const int tx = enemy->pos.x / TILE_SIZE;
+                    const int ty = enemy->pos.y / TILE_SIZE;
+
+                    const s_tile* const tile_ahead = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, ty, tx + enemy->snake_type.move_axis);
+                    const s_tile* const tile_ahead_below = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, ty + 1, tx + enemy->snake_type.move_axis);
+
+                    if (*STATIC_ARRAY_ELEM(g_tile_states_solid, tile_ahead->state) || !*STATIC_ARRAY_ELEM(g_tile_states_solid, tile_ahead_below->state)) {
+                        bool can_switch = true;
+
+                        if (enemy->snake_type.move_axis == 1) {
+                            if ((int)enemy->pos.x % TILE_SIZE < TILE_SIZE / 4) {
+                                can_switch = false;
+                            }
+                        } else {
+                            if ((int)enemy->pos.x % TILE_SIZE >= (TILE_SIZE / 4) * 3) {
+                                can_switch = false;
+                            }
+                        }
+
+                        if (can_switch) {
+                            enemy->snake_type.move_axis *= -1;
+                        }
+                    }
+
                     const float vel_x_dest = SNAKE_MOVE_SPD * enemy->snake_type.move_axis;
                     enemy->snake_type.vel.x = Lerp(enemy->snake_type.vel.x, vel_x_dest, SNAKE_MOVE_SPD_LERP);
-
-                    const s_rect rect_ahead = RectTranslated(rect, (s_v2){SNAKE_AHEAD_DIST * enemy->snake_type.move_axis, 0.0f});
-
-                    if (CheckSolidTileCollision(rect_ahead, rect_ahead.y - rect.y, &lvl->tilemap, false, true)) {
-                        enemy->snake_type.move_axis *= -1;
-                    }
 
                     enemy->snake_type.vel.y += GRAVITY;
 
@@ -1196,8 +1213,8 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
         RenderSprite(rc, textures, ek_sprite_player, lvl->player.pos, PLAYER_ORIGIN, (s_v2){1.0f, 1.0f}, 0.0f, WHITE);
 
         if (lvl->player.whip_break_time > 0) {
-            const float dir_offs = (PI * 0.6f * ((float)lvl->player.whip_break_time / PLAYER_WHIP_BREAK_TIME));
-            const float dir = lvl->player.facing_right ? dir_offs - (PI * 0.1f) : PI + (PI * 0.1f) - dir_offs;
+            const float dir_offs = (PI * 0.8f * ((float)lvl->player.whip_break_time / PLAYER_WHIP_BREAK_TIME));
+            const float dir = lvl->player.facing_right ? dir_offs - (PI * 0.2f) : PI + (PI * 0.2f) - dir_offs;
             const s_v2 pos_offs = LenDir(2.0f, dir);
             RenderSprite(rc, textures, ek_sprite_whip, V2Sum(lvl->player.pos, pos_offs), (s_v2){0.0f, 0.5f}, (s_v2){1.0f, 1.0f}, dir, WHITE);
         }

@@ -18,7 +18,7 @@
 
 #define GOLD_INCR 250
 
-#define VIEW_SCALE 8.0f
+#define VIEW_SCALE 6.0f
 
 #define BG_ALPHA 0.8f
 
@@ -124,7 +124,7 @@ static s_sprite_info g_sprite_infos[] = {
     },
     [ek_sprite_whip] = {
         .tex = ek_texture_level,
-        .src_rect = {16, 27, 8, 1}
+        .src_rect = {16, 25, 8, 3}
     },
     [ek_sprite_rock_item] = {
         .tex = ek_texture_level,
