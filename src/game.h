@@ -38,7 +38,10 @@ typedef enum {
     ek_sprite_ladder_platform_tile,
     ek_sprite_gold_tile,
     ek_sprite_shooter_tile,
-    ek_sprite_entrance_tile,
+    ek_sprite_door_tile_0,
+    ek_sprite_door_tile_1,
+    ek_sprite_door_tile_2,
+    ek_sprite_door_tile_3,
     ek_sprite_exit_tile,
     ek_sprite_player,
     ek_sprite_snake_enemy,
@@ -61,7 +64,7 @@ static s_sprite_info g_sprite_infos[] = {
     },
     [ek_sprite_ladder_platform_tile] = {
         .tex = ek_texture_level,
-        .src_rect = {16, 8, 8, 8}
+        .src_rect = {16, 16, 8, 8}
     },
     [ek_sprite_gold_tile] = {
         .tex = ek_texture_level,
@@ -71,13 +74,21 @@ static s_sprite_info g_sprite_infos[] = {
         .tex = ek_texture_level,
         .src_rect = {24, 0, 8, 8}
     },
-    [ek_sprite_entrance_tile] = {
+    [ek_sprite_door_tile_0] = {
         .tex = ek_texture_level,
         .src_rect = {0, 8, 8, 8}
     },
-    [ek_sprite_exit_tile] = {
+    [ek_sprite_door_tile_1] = {
         .tex = ek_texture_level,
         .src_rect = {8, 8, 8, 8}
+    },
+    [ek_sprite_door_tile_2] = {
+        .tex = ek_texture_level,
+        .src_rect = {16, 8, 8, 8}
+    },
+    [ek_sprite_door_tile_3] = {
+        .tex = ek_texture_level,
+        .src_rect = {24, 8, 8, 8}
     },
     [ek_sprite_player] = {
         .tex = ek_texture_level,
@@ -146,8 +157,8 @@ static e_sprite g_tile_state_sprs[] = {
     [ek_tile_state_ladder_platform] = ek_sprite_ladder_platform_tile,
     [ek_tile_state_gold] = ek_sprite_gold_tile,
     [ek_tile_state_shooter] = ek_sprite_shooter_tile,
-    [ek_tile_state_entrance] = ek_sprite_entrance_tile,
-    [ek_tile_state_exit] = ek_sprite_exit_tile
+    [ek_tile_state_entrance] = ek_sprite_door_tile_0,
+    [ek_tile_state_exit] = ek_sprite_door_tile_3
 };
 
 typedef struct {
@@ -155,6 +166,8 @@ typedef struct {
 
     bool shooter_shot;
     bool shooter_facing_right;
+
+    int door_frame_time;
 } s_tile;
 
 typedef struct {
@@ -239,7 +252,6 @@ typedef struct {
     s_font_group fonts;
     s_surface lvl_surf;
     bool title;
-    float title_alpha;
     s_level lvl;
 } s_game;
 

@@ -7,25 +7,25 @@
     {
         "type": "font",
         "output_file_path": "assets/fonts/medodica_32",
-        "file_path": "assets_raw/fonts/medodica.otf",
+        "file_path": "assets_raw/fonts/fs_pixel_sans_unicode.ttf",
         "height": 32
     },
     {
         "type": "font",
         "output_file_path": "assets/fonts/medodica_48",
-        "file_path": "assets_raw/fonts/medodica.otf",
-        "height": 48
-    },
-    {
-        "type": "font",
-        "output_file_path": "assets/fonts/medodica_64",
-        "file_path": "assets_raw/fonts/medodica.otf",
+        "file_path": "assets_raw/fonts/fs_pixel_sans_unicode.ttf",
         "height": 64
     },
     {
         "type": "font",
-        "output_file_path": "assets/fonts/medodica_96",
-        "file_path": "assets_raw/fonts/medodica.otf",
+        "output_file_path": "assets/fonts/medodica_64",
+        "file_path": "assets_raw/fonts/fs_pixel_sans_unicode.ttf",
         "height": 96
+    },
+    {
+        "type": "font",
+        "output_file_path": "assets/fonts/medodica_96",
+        "file_path": "assets_raw/fonts/fs_pixel_sans_unicode.ttf",
+        "height": 144
     }
 ]

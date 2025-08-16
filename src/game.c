@@ -6,11 +6,11 @@ static void RefreshViewScale(const s_v2_s32 window_size) {
     g_view_scale = 8.0f;
 
     if (window_size.x > 1600 || window_size.y > 900) {
-        g_view_scale = 5.0f;
+        g_view_scale = 10.0f;
     }
 
     if (window_size.x > 1920 || window_size.y > 1080) {
-        g_view_scale = 6.0f;
+        g_view_scale = 12.0f;
     }
 }
 
@@ -32,7 +32,6 @@ bool InitGame(const s_game_init_context* const zfw_context) {
     }
 
     game->title = true;
-    game->title_alpha = 1.0f;
 
     if (!GenLevel(&game->lvl, zfw_context->window_state.size, zfw_context->temp_mem_arena)) {
         return false;
@@ -46,21 +45,28 @@ e_game_tick_result GameTick(const s_game_tick_context* const zfw_context) {
 
     RefreshViewScale(zfw_context->window_state.size);
 
+    const s_v2_s32 lvl_surf_size_ideal = {zfw_context->window_state.size.x / g_view_scale, zfw_context->window_state.size.y / g_view_scale};
+
+    if (!V2S32sEqual(game->lvl_surf.size, lvl_surf_size_ideal)) {
+        if (!ResizeSurface(&game->lvl_surf, lvl_surf_size_ideal)) {
+            return ek_game_tick_result_error;
+        }
+    }
+
     if (IsKeyPressed(&zfw_context->input_context, ek_key_code_x)) {
         game->title = false;
         game->lvl.started = true;
-    }
-
-    if (!game->title) {
-        game->title_alpha = Lerp(game->title_alpha, 0.0f, 0.4f);
     }
 
     if (IsKeyPressed(&zfw_context->input_context, ek_key_code_r)) {
         ZERO_OUT(game->lvl);
 
         if (!GenLevel(&game->lvl, zfw_context->window_state.size, zfw_context->temp_mem_arena)) {
-            return false;
+            return ek_game_tick_result_error;
         }
+
+        game->lvl.started = true;
+        game->lvl.index = 0;
     }
 
     const e_level_update_end_result res = UpdateLevel(&game->lvl, zfw_context);
@@ -74,11 +80,10 @@ e_game_tick_result GameTick(const s_game_tick_context* const zfw_context) {
                 ZERO_OUT(game->lvl);
 
                 if (!GenLevel(&game->lvl, zfw_context->window_state.size, zfw_context->temp_mem_arena)) {
-                    return false;
+                    return ek_game_tick_result_error;
                 }
 
                 game->title = true;
-                game->title_alpha = 1.0f;
             }
 
             break;
@@ -90,7 +95,7 @@ e_game_tick_result GameTick(const s_game_tick_context* const zfw_context) {
                 ZERO_OUT(game->lvl);
 
                 if (!GenLevel(&game->lvl, zfw_context->window_state.size, zfw_context->temp_mem_arena)) {
-                    return false;
+                    return ek_game_tick_result_error;
                 }
 
                 game->lvl.started = true;
@@ -122,17 +127,23 @@ bool RenderGame(const s_game_render_context* const zfw_context) {
         return false;
     }
 
-    if (game->title_alpha > 0.001f) {
+    if (game->title) {
+#if 0
         const s_rect screen_rect = {0.0f, 0.0f, rc->window_size.x, rc->window_size.y};
         RenderRect(rc, screen_rect, (u_v4){BLACK.rgb, 0.7f * game->title_alpha});
+#endif
 
-        const u_v4 col = {WHITE.rgb, game->title_alpha};
+        const float bg_height = 256.0f;
+        const s_rect bg_rect = {0.0f, (rc->window_size.y - bg_height) / 2.0f, rc->window_size.x, bg_height};
+        const float bg_rect_outline_size = g_view_scale;
+        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y - bg_rect_outline_size, bg_rect.width, bg_rect.height + (bg_rect_outline_size * 2.0f)}, WHITE);
+        RenderRect(rc, bg_rect, BLACK);
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("Spelunky in C"), &game->fonts, ek_font_roboto_96, (s_v2){rc->window_size.x / 2.0f, rc->window_size.y * 0.4f}, ALIGNMENT_CENTER, col, zfw_context->temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("SPELUNKY IN C"), &game->fonts, ek_font_roboto_96, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) - 48.0f}, ALIGNMENT_CENTER, WHITE, zfw_context->temp_mem_arena)) {
             return false;
         }
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("Press [X] to start."), &game->fonts, ek_font_roboto_64, (s_v2){rc->window_size.x / 2.0f, rc->window_size.y * 0.75f}, ALIGNMENT_CENTER, col, zfw_context->temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("PRESS [X] TO START"), &game->fonts, ek_font_roboto_48, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 48.0f}, ALIGNMENT_CENTER, WHITE, zfw_context->temp_mem_arena)) {
             return false;
         }
     }
