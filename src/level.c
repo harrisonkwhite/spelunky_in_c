@@ -575,9 +575,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, const s_game_tick_cont
                 const s_rect possible_latch_targ_tile_rect = GenTileRect(possible_latch_targ.x, possible_latch_targ.y);
 
                 if (new_rect.y >= possible_latch_targ_tile_rect.y) {
-                    if (possible_latch_targ_tile_rect.x > 0.0f) {
-                    }
-
+                    lvl->player.pos.x = roundf(lvl->player.pos.x);
                     lvl->player.latching = true;
                     lvl->player.pos.y -= new_rect.y - possible_latch_targ_tile_rect.y;
                     lvl->player.vel = (s_v2){0};
@@ -771,8 +769,8 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, const s_game_tick_cont
     };
 
     const s_v2_s32 view_size = {zfw_context->window_state.size.x / g_view_scale, zfw_context->window_state.size.y / g_view_scale};
-    view_dest.x = CLAMP(roundf(view_dest.x), view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
-    view_dest.y = CLAMP(roundf(view_dest.y), view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
+    view_dest.x = CLAMP(view_dest.x, view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
+    view_dest.y = CLAMP(view_dest.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
 lvl->view_pos = view_dest;
 #if 0
     const float view_lerp_factor = 0.2f;
