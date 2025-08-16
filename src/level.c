@@ -36,6 +36,7 @@
 #define ITEM_DROP_ORIGIN (s_v2){0.5f, 0.5f}
 #define ITEM_DROP_PICKUP_MAG 1.0f
 
+#define DEATH_FADE_IN_LERP 0.4f
 #define DEATH_BG_ALPHA 0.8f
 
 static s_rect GenTileRect(const int tx, const int ty) {
@@ -1011,6 +1012,8 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
         if (IsKeyPressed(&zfw_context->input_context, ek_key_code_x)) {
             end_res = ek_level_update_end_result_restart;
         }
+
+        lvl->death_alpha = Lerp(lvl->death_alpha, 1.0f, DEATH_FADE_IN_LERP);
     } 
 
     //
@@ -1076,13 +1079,13 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
     }
 
     //
-    // Tilemap
+    // Tilemap (Behind)
     //
     for (int ty = 0; ty < TILEMAP_HEIGHT; ty++) {
         for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
             const s_tile* const t = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, ty, tx);
 
-            if (t->state == ek_tile_state_empty) {
+            if (t->state == ek_tile_state_empty || !g_tile_state_is_behind_ents[t->state]) {
                 continue;
             }
 
@@ -1093,8 +1096,6 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
             if (t->state == ek_tile_state_entrance || t->state == ek_tile_state_exit) {
                 const int frame_index = MIN(t->door_frame_time / DOOR_FRAME_INTERVAL, DOOR_FRAME_CNT - 1);
                 spr = ek_sprite_door_tile_0 + frame_index;
-            } else if (t->state == ek_tile_state_shooter) {
-                spr = t->shooter_facing_right ? ek_sprite_shooter_tile_right : ek_sprite_shooter_tile_left;
             } else {
                 spr = *STATIC_ARRAY_ELEM(g_tile_state_sprs, t->state);
             }
@@ -1162,6 +1163,31 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
     }
 
     //
+    // Tilemap (Front)
+    //
+    for (int ty = 0; ty < TILEMAP_HEIGHT; ty++) {
+        for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
+            const s_tile* const t = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, ty, tx);
+
+            if (t->state == ek_tile_state_empty || g_tile_state_is_behind_ents[t->state]) {
+                continue;
+            }
+
+            const s_v2 pos = {tx * TILE_SIZE, ty * TILE_SIZE};
+
+            e_sprite spr;
+
+            if (t->state == ek_tile_state_shooter) {
+                spr = t->shooter_facing_right ? ek_sprite_shooter_tile_right : ek_sprite_shooter_tile_left;
+            } else {
+                spr = *STATIC_ARRAY_ELEM(g_tile_state_sprs, t->state);
+            }
+
+            RenderSprite(rc, textures, spr, pos, (s_v2){0}, (s_v2){1.0f, 1.0f}, 0.0f, WHITE);
+        }
+    }
+
+    //
     // Particles
     //
     for (int i = 0; i < STATIC_ARRAY_LEN(lvl->particles); i++) {
@@ -1173,7 +1199,7 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
 
         const s_v2 size = {2.0f, 2.0f};
         const s_rect rect = {pt->pos.x - size.x, pt->pos.y - size.y, size.x, size.y};
-        RenderRect(rc, rect, WHITE);
+        RenderTexture(rc, &rc->basis->builtin_textures, ek_builtin_texture_pixel, (s_rect_s32){0}, pt->pos, (s_v2){0.5f, 0.5f}, V2_ONE, pt->rot, (u_v4){WHITE.rgb, pt->alpha});
     }
 
     //
@@ -1231,15 +1257,15 @@ bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_s
         const s_rect bg_rect = {0.0f, (rc->window_size.y - bg_height) / 2.0f, rc->window_size.x, bg_height};
         const float bg_rect_outline_size = VIEW_SCALE;
 
-        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y - bg_rect_outline_size, bg_rect.width, bg_rect_outline_size}, WHITE);
-        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y + bg_rect.height, bg_rect.width, bg_rect_outline_size}, WHITE);
-        RenderRect(rc, bg_rect, (u_v4){BLACK.rgb, DEATH_BG_ALPHA});
+        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y - bg_rect_outline_size, bg_rect.width, bg_rect_outline_size}, (u_v4){WHITE.rgb, lvl->death_alpha});
+        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y + bg_rect.height, bg_rect.width, bg_rect_outline_size}, (u_v4){WHITE.rgb, lvl->death_alpha});
+        RenderRect(rc, bg_rect, (u_v4){BLACK.rgb, lvl->death_alpha * DEATH_BG_ALPHA});
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("YOU DIED"), fonts, ek_font_pixel_large, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) - 40.0f}, ALIGNMENT_CENTER, WHITE, temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("YOU DIED"), fonts, ek_font_pixel_large, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) - 40.0f}, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, lvl->death_alpha}, temp_mem_arena)) {
             return false;
         }
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("PRESS [X] TO RESTART"), fonts, ek_font_pixel_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 40.0f}, ALIGNMENT_CENTER, WHITE, temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("PRESS [X] TO RESTART"), fonts, ek_font_pixel_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 40.0f}, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, lvl->death_alpha}, temp_mem_arena)) {
             return false;
         }
     }

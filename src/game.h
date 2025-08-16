@@ -153,6 +153,17 @@ typedef enum {
     ek_tile_state_exit
 } e_tile_state;
 
+static bool g_tile_state_is_behind_ents[] = {
+    [ek_tile_state_empty] = false,
+    [ek_tile_state_dirt] = false,
+    [ek_tile_state_ladder] = true,
+    [ek_tile_state_ladder_platform] = true,
+    [ek_tile_state_gold] = true,
+    [ek_tile_state_shooter] = false,
+    [ek_tile_state_entrance] = true,
+    [ek_tile_state_exit] = true
+};
+
 static bool g_tile_states_solid[] = {
     [ek_tile_state_empty] = false,
     [ek_tile_state_dirt] = true,
@@ -309,6 +320,8 @@ typedef struct {
     s_v2 view_pos;
 
     e_player_control_display control_display;
+
+    float death_alpha;
 } s_level;
 
 typedef struct {
