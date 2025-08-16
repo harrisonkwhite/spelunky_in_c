@@ -308,6 +308,12 @@ typedef enum {
     ek_player_control_display_up
 } e_player_control_display;
 
+typedef enum {
+    ek_interact_popup_type_none,
+    ek_interact_popup_type_equip,
+    ek_interact_popup_type_enter
+} e_interact_popup_type;
+
 typedef struct {
     bool started;
     int post_start_wait_time;
@@ -342,6 +348,10 @@ typedef struct {
     float death_alpha;
 
     float general_ui_alpha;
+
+    e_interact_popup_type interact_popup_type;
+    e_interact_popup_type interact_popup_type_cache;
+    float interact_popup_alpha;
 } s_level;
 
 typedef struct {

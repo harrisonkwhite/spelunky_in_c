@@ -8,6 +8,7 @@
 // - lots of level variations
 // - clean up spike collision mask
 // - item drop outlines shouild be in the UI not in world space
+// - problem: UI sometimes obscures stuff in corners like doors!
 //
 // - money shouldnt be a tile (not necessary)
 // - need control over player jump height
@@ -641,6 +642,8 @@ static void TriggerHorShooters(s_level* const lvl, const int tx_center, const in
 e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* const run_state, const s_game_tick_context* const zfw_context) {
     e_level_update_end_result end_res = ek_level_update_end_result_normal;
 
+    lvl->interact_popup_type = ek_interact_popup_type_none;
+
     lvl->item_drop_hovered_index = -1;
 
     const int player_hp_old = lvl->hp;
@@ -889,8 +892,10 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
         //
         // End Level
         //
-        if (IsKeyPressed(&zfw_context->input_context, ek_key_code_z)) {
-            if (CheckTileCollisionWithState(NULL, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_exit)) {
+        if (CheckTileCollisionWithState(NULL, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_exit)) {
+            lvl->interact_popup_type = ek_interact_popup_type_enter;
+
+            if (IsKeyPressed(&zfw_context->input_context, ek_key_code_z)) {
                 lvl->leaving = true;
             }
         }
@@ -998,6 +1003,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
 
                 if (DoRectsInters(player_collider, drop_collider)) {
                     lvl->item_drop_hovered_index = i;
+                    lvl->interact_popup_type = ek_interact_popup_type_equip;
 
                     if (IsKeyPressed(&zfw_context->input_context, ek_key_code_z)) {
                         lvl->player.holding_item = true;
@@ -1151,6 +1157,16 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
     lvl->view_pos_no_shake.y = CLAMP(lvl->view_pos_no_shake.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
 
     lvl->view_shake *= 0.8f;
+
+    //
+    // Interactp opopoipoio;
+    //hsdkljashjkldhakshdlk
+    if (lvl->interact_popup_type != ek_interact_popup_type_none) {
+        lvl->interact_popup_type_cache = lvl->interact_popup_type;
+        lvl->interact_popup_alpha = Lerp(lvl->interact_popup_alpha, 1.0f, 0.5f);
+    } else {
+        lvl->interact_popup_alpha = Lerp(lvl->interact_popup_alpha, 0.0f, 0.5f);
+    }
 
     return end_res;
 }
@@ -1386,6 +1402,46 @@ bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_s
         const s_v2 lvl_str_pos = {rc->window_size.x - 26.0f, rc->window_size.y - 12.0f};
 
         if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(lvl_str), fonts, ek_font_pixel_med, lvl_str_pos, ALIGNMENT_BOTTOM_RIGHT, (u_v4){WHITE.rgb, lvl->general_ui_alpha}, temp_mem_arena)) {
+            return false;
+        }
+    }
+
+    //
+    // Interact
+    //
+    if (lvl->interact_popup_alpha >= 0.001f) {
+        const s_v2 bg_rect_size = {320.0f, 96.0f};
+        const s_rect bg_rect = {
+            (rc->window_size.x - bg_rect_size.x) / 2.0f,
+            rc->window_size.y - bg_rect_size.y,
+            bg_rect_size.x,
+            bg_rect_size.y
+        };
+
+        const float bg_rect_outline_size = VIEW_SCALE;
+
+        RenderRect(rc, (s_rect){bg_rect.x - bg_rect_outline_size, bg_rect.y - bg_rect_outline_size, bg_rect.width + (bg_rect_outline_size * 2.0f), bg_rect_outline_size}, (u_v4){WHITE.rgb, lvl->general_ui_alpha * lvl->interact_popup_alpha});
+        RenderRect(rc, (s_rect){bg_rect.x - bg_rect_outline_size, bg_rect.y - bg_rect_outline_size, bg_rect_outline_size, bg_rect.height + bg_rect_outline_size}, (u_v4){WHITE.rgb, lvl->general_ui_alpha * lvl->interact_popup_alpha});
+        RenderRect(rc, (s_rect){bg_rect.x + bg_rect.width, bg_rect.y - bg_rect_outline_size, bg_rect_outline_size, bg_rect.height + bg_rect_outline_size}, (u_v4){WHITE.rgb, lvl->general_ui_alpha * lvl->interact_popup_alpha});
+        RenderRect(rc, bg_rect, (u_v4){BLACK.rgb, lvl->general_ui_alpha * BG_ALPHA * lvl->interact_popup_alpha});
+
+        char interact_str[16] = {0};
+
+        assert(lvl->interact_popup_type_cache != ek_interact_popup_type_none);
+
+        switch (lvl->interact_popup_type_cache) {
+            case ek_interact_popup_type_equip:
+                snprintf(interact_str, sizeof(interact_str), "[Z] Equip");
+                break;
+
+            case ek_interact_popup_type_enter:
+                snprintf(interact_str, sizeof(interact_str), "[Z] Enter");
+                break;
+        }
+
+        const s_v2 interact_str_pos = {rc->window_size.x / 2.0f, rc->window_size.y - 12.0f};
+
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(interact_str), fonts, ek_font_pixel_med, interact_str_pos, ALIGNMENT_BOTTOM_CENTER, (u_v4){WHITE.rgb, lvl->general_ui_alpha * lvl->interact_popup_alpha}, temp_mem_arena)) {
             return false;
         }
     }
