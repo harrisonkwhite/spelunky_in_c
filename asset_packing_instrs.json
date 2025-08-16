@@ -8,7 +8,7 @@
         "type": "font",
         "output_file_path": "assets/fonts/very_small",
         "file_path": "assets_raw/fonts/fs_pixel_sans_unicode.ttf",
-        "height": 32
+        "height": 56
     },
     {
         "type": "font",

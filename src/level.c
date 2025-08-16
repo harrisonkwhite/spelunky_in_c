@@ -10,6 +10,8 @@
 
 #define GRAVITY 0.4f
 
+#define PARALLAX 0.1f
+
 #define PLAYER_MOVE_SPD 1.5f
 #define PLAYER_MOVE_SPD_LERP 0.3f
 #define PLAYER_JUMP_HEIGHT 3.0f
@@ -754,7 +756,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
                     SpawnItemDrop(lvl, lvl->player.pos, throw_vel, lvl->player.item_type_held);
                     lvl->player.holding_item = false;
                 } else {
-                    if (lvl->player.whip_break_time > 0) {
+                    if (lvl->player.whip_break_time == 0) {
                         lvl->player.whip_break_time = PLAYER_WHIP_BREAK_TIME;
 
                         const s_v2 hb_pos = {lvl->player.pos.x + (lvl->player.facing_right ? PLAYER_WHIP_OFFS : -PLAYER_WHIP_OFFS), lvl->player.pos.y};
@@ -902,7 +904,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
         }
 
         // Item drop collection
-        if (!lvl->player.holding_item && IsKeyPressed(&zfw_context->input_context, ek_key_code_z)) {
+        if (!lvl->player.holding_item && IsKeyPressed(&zfw_context->input_context, ek_key_code_z) && !lvl->player.climbing && !lvl->player.latching) {
             const s_rect player_collider = GenPlayerRect(lvl->player.pos);
 
             for (int i = 0; i < STATIC_ARRAY_LEN(lvl->item_drops); i++) {
@@ -1049,7 +1051,7 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
     for (int ty = 0; ty < TILEMAP_HEIGHT; ty++) {
         for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
             const s_v2 pos = {tx * TILE_SIZE, ty * TILE_SIZE};
-            RenderSprite(rc, textures, ek_sprite_bg, pos, (s_v2){0}, (s_v2){1.0f, 1.0f}, 0.0f, GRAY);
+            RenderSprite(rc, textures, ek_sprite_bg, V2Sum(pos, (s_v2){(lvl->view_pos.x * PARALLAX) - (view_size.x * PARALLAX * 0.5f), (lvl->view_pos.y * PARALLAX) - (view_size.y * PARALLAX * 0.5f)}), (s_v2){0}, (s_v2){1.0f, 1.0f}, 0.0f, GRAY);
         }
     }
 
@@ -1082,19 +1084,6 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
     }
 
     //
-    // Item Drops
-    //
-    for (int i = 0; i < STATIC_ARRAY_LEN(lvl->item_drops); i++) {
-        const s_item_drop* const drop = STATIC_ARRAY_ELEM(lvl->item_drops, i);
-
-        if (!drop->active) {
-            continue;
-        }
-
-        RenderSprite(rc, textures, *STATIC_ARRAY_ELEM(g_item_type_sprs, drop->type), drop->pos, ITEM_DROP_ORIGIN, (s_v2){1.0f, 1.0f}, 0.0f, WHITE);
-    }
-
-    //
     // Player
     //
     if (DoesPlayerExist(lvl)) {
@@ -1123,6 +1112,19 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
         }
 
         RenderSprite(rc, textures, ek_sprite_snake_enemy, enemy->pos, SNAKE_ORIGIN, (s_v2){1.0f, 1.0f}, 0.0f, WHITE);
+    }
+
+    //
+    // Item Drops
+    //
+    for (int i = 0; i < STATIC_ARRAY_LEN(lvl->item_drops); i++) {
+        const s_item_drop* const drop = STATIC_ARRAY_ELEM(lvl->item_drops, i);
+
+        if (!drop->active) {
+            continue;
+        }
+
+        RenderSprite(rc, textures, *STATIC_ARRAY_ELEM(g_item_type_sprs, drop->type), drop->pos, ITEM_DROP_ORIGIN, (s_v2){1.0f, 1.0f}, 0.0f, WHITE);
     }
 
     //
@@ -1168,14 +1170,22 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
 }
 
 bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_state, const s_rendering_context* const rc, const s_font_group* const fonts, s_mem_arena* const temp_mem_arena) {
+#if 0
+    //
+    // Control Display
+    //
+    if (lvl->control_display != ek_player_control_display_none) {
+    }
+#endif
+
     //
     // Stats
     //
     if (DoesPlayerExist(lvl)) {
         const s_rect stats_bg_rect = {0.0f, 0.0f, 320.0f, 180.0f};
         const float stats_bg_rect_outline_size = g_view_scale;
-        RenderRect(rc, (s_rect){stats_bg_rect.x, stats_bg_rect.y, stats_bg_rect.width + stats_bg_rect_outline_size, stats_bg_rect.height + stats_bg_rect_outline_size}, WHITE);
-        RenderRect(rc, stats_bg_rect, BLACK);
+        //RenderRect(rc, (s_rect){stats_bg_rect.x, stats_bg_rect.y, stats_bg_rect.width + stats_bg_rect_outline_size, stats_bg_rect.height + stats_bg_rect_outline_size}, WHITE);
+        RenderRect(rc, stats_bg_rect, (u_v4){BLACK.rgb, 0.8f});
 
         char stats_str[32];
         snprintf(stats_str, sizeof(stats_str), "LVL: %d\nGOLD: $%d", run_state->lvl_num, run_state->gold_cnt);

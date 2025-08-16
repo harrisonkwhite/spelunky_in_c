@@ -270,6 +270,12 @@ typedef enum {
     ek_level_update_end_result_restart
 } e_level_update_end_result;
 
+typedef enum {
+    ek_player_control_display_none,
+    ek_player_control_display_down,
+    ek_player_control_display_up
+} e_player_control_display;
+
 typedef struct {
     bool started;
     int post_start_wait_time;
@@ -296,6 +302,8 @@ typedef struct {
     int hp;
 
     s_v2 view_pos;
+
+    e_player_control_display control_display;
 } s_level;
 
 typedef struct {

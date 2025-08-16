@@ -135,17 +135,22 @@ bool RenderGame(const s_game_render_context* const zfw_context) {
         RenderRect(rc, screen_rect, (u_v4){BLACK.rgb, 0.7f * game->title_alpha});
 #endif
 
-        const float bg_height = 256.0f;
+        const float bg_height = 512.0f;
         const s_rect bg_rect = {0.0f, (rc->window_size.y - bg_height) / 2.0f, rc->window_size.x, bg_height};
         const float bg_rect_outline_size = g_view_scale;
-        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y - bg_rect_outline_size, bg_rect.width, bg_rect.height + (bg_rect_outline_size * 2.0f)}, WHITE);
-        RenderRect(rc, bg_rect, BLACK);
+        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y - bg_rect_outline_size, bg_rect.width, bg_rect_outline_size}, WHITE);
+        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y + bg_rect.height, bg_rect.width, bg_rect_outline_size}, WHITE);
+        RenderRect(rc, bg_rect, (u_v4){0.0f, 0.0f, 0.0f, 0.8f});
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("SPELUNKY IN C"), &game->fonts, ek_font_pixel_very_large, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) - 48.0f}, ALIGNMENT_CENTER, WHITE, zfw_context->temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("SPELUNKY (IN C)"), &game->fonts, ek_font_pixel_very_large, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) - 168.0f}, ALIGNMENT_CENTER, WHITE, zfw_context->temp_mem_arena)) {
             return false;
         }
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("PRESS [X] TO START"), &game->fonts, ek_font_pixel_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 48.0f}, ALIGNMENT_CENTER, WHITE, zfw_context->temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("[RIGHT]/[LEFT]/[DOWN]/[UP] TO MOVE\n[X] TO ATTACK OR THROW ITEM\n[Z] TO EQUIP ITEM"), &game->fonts, ek_font_pixel_very_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 32.0f}, ALIGNMENT_CENTER, WHITE, zfw_context->temp_mem_arena)) {
+            return false;
+        }
+
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("PRESS [X] TO START"), &game->fonts, ek_font_pixel_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 184.0f}, ALIGNMENT_CENTER, WHITE, zfw_context->temp_mem_arena)) {
             return false;
         }
     }
