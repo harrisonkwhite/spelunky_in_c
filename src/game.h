@@ -36,6 +36,7 @@ static s_rgba_texture GenTextureRGBA(const t_s32 tex_index, s_mem_arena* const m
 typedef enum {
     ek_sprite_dirt_tile,
     ek_sprite_ladder_tile,
+    ek_sprite_ladder_platform_tile,
     ek_sprite_gold_tile,
     ek_sprite_shooter_tile,
     ek_sprite_entrance_tile,
@@ -58,6 +59,10 @@ static s_sprite_info g_sprite_infos[] = {
     [ek_sprite_ladder_tile] = {
         .tex = ek_texture_level,
         .src_rect = {8, 0, 8, 8}
+    },
+    [ek_sprite_ladder_platform_tile] = {
+        .tex = ek_texture_level,
+        .src_rect = {16, 8, 8, 8}
     },
     [ek_sprite_gold_tile] = {
         .tex = ek_texture_level,
@@ -107,6 +112,7 @@ typedef enum {
     ek_tile_state_empty,
     ek_tile_state_dirt,
     ek_tile_state_ladder,
+    ek_tile_state_ladder_platform,
     ek_tile_state_gold,
     ek_tile_state_shooter,
     ek_tile_state_entrance,
@@ -117,8 +123,20 @@ static bool g_tile_states_solid[] = {
     [ek_tile_state_empty] = false,
     [ek_tile_state_dirt] = true,
     [ek_tile_state_ladder] = false,
+    [ek_tile_state_ladder_platform] = true,
     [ek_tile_state_gold] = false,
     [ek_tile_state_shooter] = true,
+    [ek_tile_state_entrance] = false,
+    [ek_tile_state_exit] = false
+};
+
+static bool g_tile_states_platform[] = {
+    [ek_tile_state_empty] = false,
+    [ek_tile_state_dirt] = false,
+    [ek_tile_state_ladder] = false,
+    [ek_tile_state_ladder_platform] = true,
+    [ek_tile_state_gold] = false,
+    [ek_tile_state_shooter] = false,
     [ek_tile_state_entrance] = false,
     [ek_tile_state_exit] = false
 };
@@ -126,6 +144,7 @@ static bool g_tile_states_solid[] = {
 static e_sprite g_tile_state_sprs[] = {
     [ek_tile_state_dirt] = ek_sprite_dirt_tile,
     [ek_tile_state_ladder] = ek_sprite_ladder_tile,
+    [ek_tile_state_ladder_platform] = ek_sprite_ladder_platform_tile,
     [ek_tile_state_gold] = ek_sprite_gold_tile,
     [ek_tile_state_shooter] = ek_sprite_shooter_tile,
     [ek_tile_state_entrance] = ek_sprite_entrance_tile,
@@ -188,6 +207,8 @@ typedef struct {
 #define ENEMY_LIMIT 128
 
 typedef struct {
+    int index;
+
     s_tilemap tilemap;
 
     s_player player;

@@ -60,6 +60,18 @@ e_game_tick_result GameTick(const s_game_tick_context* const zfw_context) {
 
     UpdateLevel(&game->lvl, zfw_context);
 
+    if (game->lvl.completed) {
+        const int lvl_index_old = game->lvl.index;
+
+        ZERO_OUT(game->lvl);
+
+        if (!GenLevel(&game->lvl, zfw_context->window_state.size, zfw_context->temp_mem_arena)) {
+            return false;
+        }
+
+        game->lvl.index = lvl_index_old + 1;
+    }
+
     return ek_game_tick_result_normal;
 }
 
