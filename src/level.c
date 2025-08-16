@@ -5,7 +5,7 @@
 
 // Check tiles to the right. If the topmost tile has a 
 
-#define POST_START_WAIT_TIME_MAX 30
+#define POST_START_WAIT_TIME_MAX 60
 #define LEAVING_WAIT_TIME_MAX 30
 
 #define GRAVITY 0.4f
@@ -35,6 +35,8 @@
 
 #define ITEM_DROP_ORIGIN (s_v2){0.5f, 0.5f}
 #define ITEM_DROP_PICKUP_MAG 1.0f
+
+#define DEATH_BG_ALPHA 0.8f
 
 static s_rect GenTileRect(const int tx, const int ty) {
     return (s_rect){tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE};
@@ -545,7 +547,41 @@ static inline bool DoesPlayerExist(const s_level* const lvl) {
     return lvl->started && lvl->post_start_wait_time == POST_START_WAIT_TIME_MAX && !lvl->leaving && lvl->hp > 0;
 }
 
+static void TriggerHorShooters(s_level* const lvl, const int tx_center, const int ty) {
+    // Check to right.
+    for (int tx = tx_center + 1; ; tx++) {
+        s_tile* const tile = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, ty, tx);
+
+        if (tile->state == ek_tile_state_shooter && !tile->shooter_shot && !tile->shooter_facing_right) {
+            SpawnArrow(lvl, (s_v2){(tx + 0.5f) * TILE_SIZE, (ty + 0.5f) * TILE_SIZE}, false);
+            tile->shooter_shot = true;
+            break;
+        }
+
+        if (*STATIC_ARRAY_ELEM(g_tile_states_solid, tile->state)) {
+            break;
+        }
+    }
+
+    // Check to left.
+    for (int tx = tx_center - 1; ; tx--) {
+        s_tile* const tile = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, ty, tx);
+
+        if (tile->state == ek_tile_state_shooter && !tile->shooter_shot && tile->shooter_facing_right) {
+            SpawnArrow(lvl, (s_v2){(tx + 0.5f) * TILE_SIZE, (ty + 0.5f) * TILE_SIZE}, true);
+            tile->shooter_shot = true;
+            break;
+        }
+
+        if (*STATIC_ARRAY_ELEM(g_tile_states_solid, tile->state)) {
+            break;
+        }
+    }
+}
+
 e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* const run_state, const s_game_tick_context* const zfw_context) {
+    e_level_update_end_result end_res = ek_level_update_end_result_normal;
+
     lvl->item_drop_hovered_index = -1;
 
     const int player_hp_old = lvl->hp;
@@ -554,20 +590,22 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
         if (lvl->post_start_wait_time < POST_START_WAIT_TIME_MAX) {
             lvl->post_start_wait_time++;
 
-            // LOL THIS IS SO BAD
-            for (int ty = 0; ty < TILEMAP_HEIGHT; ty++) {
-                for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
-                    s_tile* const t = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, ty, tx);
+            if (lvl->post_start_wait_time >= POST_START_WAIT_TIME_MAX / 2) {
+                // LOL THIS IS SO BAD
+                for (int ty = 0; ty < TILEMAP_HEIGHT; ty++) {
+                    for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
+                        s_tile* const t = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, ty, tx);
 
-                    if (t->state != ek_tile_state_entrance) {
-                        continue;
+                        if (t->state != ek_tile_state_entrance) {
+                            continue;
+                        }
+
+                        if (t->door_frame_time < DOOR_FRAME_INTERVAL * DOOR_FRAME_CNT) {
+                            t->door_frame_time++;
+                        }
+
+                        break; // only one i guess
                     }
-
-                    if (t->door_frame_time < DOOR_FRAME_INTERVAL * DOOR_FRAME_CNT) {
-                        t->door_frame_time++;
-                    }
-
-                    break; // only one i guess
                 }
             }
         } else {
@@ -609,7 +647,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
                 }
             }
         } else {
-            return ek_level_update_end_result_next;
+            end_res = ek_level_update_end_result_next;
         }
     }
 
@@ -774,40 +812,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
         //
         // Shooter Tiles
         //
-        {
-            const int player_tile_x = lvl->player.pos.x / TILE_SIZE;
-            const int player_tile_y = lvl->player.pos.y / TILE_SIZE;
-
-            // Check to player right.
-            for (int tx = player_tile_x + 1; ; tx++) {
-                s_tile* const tile = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, player_tile_y, tx);
-
-                if (tile->state == ek_tile_state_shooter && !tile->shooter_shot && !tile->shooter_facing_right) {
-                    SpawnArrow(lvl, (s_v2){(tx + 0.5f) * TILE_SIZE, (player_tile_y + 0.5f) * TILE_SIZE}, false);
-                    tile->shooter_shot = true;
-                    break;
-                }
-
-                if (*STATIC_ARRAY_ELEM(g_tile_states_solid, tile->state)) {
-                    break;
-                }
-            }
-
-            // Check to player left.
-            for (int tx = player_tile_x - 1; ; tx--) {
-                s_tile* const tile = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, player_tile_y, tx);
-
-                if (tile->state == ek_tile_state_shooter && !tile->shooter_shot && tile->shooter_facing_right) {
-                    SpawnArrow(lvl, (s_v2){(tx + 0.5f) * TILE_SIZE, (player_tile_y + 0.5f) * TILE_SIZE}, true);
-                    tile->shooter_shot = true;
-                    break;
-                }
-
-                if (*STATIC_ARRAY_ELEM(g_tile_states_solid, tile->state)) {
-                    break;
-                }
-            }
-        }
+        TriggerHorShooters(lvl, lvl->player.pos.x / TILE_SIZE, lvl->player.pos.y / TILE_SIZE);
 
         //
         // End Level
@@ -816,28 +821,6 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
             if (CheckTileCollisionWithState(NULL, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_exit)) {
                 lvl->leaving = true;
             }
-        }
-    }
-
-    //
-    // Arrows
-    //
-    {
-        const s_rect player_collider = GenPlayerRect(lvl->player.pos);
-
-        for (int i = 0; i < lvl->arrow_cnt; i++) {
-            s_arrow* const arrow = STATIC_ARRAY_ELEM(lvl->arrows, i);
-            arrow->pos.x += ARROW_SPD * (arrow->right ? 1.0f : -1.0f);
-
-            const s_rect collider = GenArrowRect(arrow->pos);
-
-            if (CheckSolidTileCollision(collider, 0.0f, &lvl->tilemap, true, true)) {
-                *arrow = *STATIC_ARRAY_ELEM(lvl->arrows, lvl->arrow_cnt - 1);
-                lvl->arrow_cnt--;
-                i--;
-            }
-
-            SpawnHitbox(lvl, arrow->pos, (s_v2){ARROW_SIZE.x, ARROW_SIZE.y}, ARROW_ORIGIN, 1, true);
         }
     }
 
@@ -905,6 +888,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
 
             if (Mag(drop->vel) >= ITEM_DROP_PICKUP_MAG) {
                 SpawnHitbox(lvl, drop->pos, ItemDropSize(drop->pos, drop->type), ITEM_DROP_ORIGIN, 1, false);
+                TriggerHorShooters(lvl, drop->pos.x / TILE_SIZE, drop->pos.y / TILE_SIZE);
             }
         }
 
@@ -934,6 +918,28 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
                     break;
                 }
             }
+        }
+    }
+
+    //
+    // Arrows
+    //
+    {
+        const s_rect player_collider = GenPlayerRect(lvl->player.pos);
+
+        for (int i = 0; i < lvl->arrow_cnt; i++) {
+            s_arrow* const arrow = STATIC_ARRAY_ELEM(lvl->arrows, i);
+            arrow->pos.x += ARROW_SPD * (arrow->right ? 1.0f : -1.0f);
+
+            const s_rect collider = GenArrowRect(arrow->pos);
+
+            if (CheckSolidTileCollision(collider, 0.0f, &lvl->tilemap, true, true)) {
+                *arrow = *STATIC_ARRAY_ELEM(lvl->arrows, lvl->arrow_cnt - 1);
+                lvl->arrow_cnt--;
+                i--;
+            }
+
+            SpawnHitbox(lvl, arrow->pos, (s_v2){ARROW_SIZE.x, ARROW_SIZE.y}, ARROW_ORIGIN, 1, true);
         }
     }
 
@@ -1003,7 +1009,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
         }
 
         if (IsKeyPressed(&zfw_context->input_context, ek_key_code_x)) {
-            return ek_level_update_end_result_restart;
+            end_res = ek_level_update_end_result_restart;
         }
     } 
 
@@ -1048,7 +1054,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
     lvl->view_pos.x = CLAMP(lvl->view_pos.x, view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
     lvl->view_pos.y = CLAMP(lvl->view_pos.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
 
-    return ek_level_update_end_result_normal;
+    return end_res;
 }
 
 void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, const s_texture_group* const textures) {
@@ -1224,8 +1230,10 @@ bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_s
         const float bg_height = 200.0f;
         const s_rect bg_rect = {0.0f, (rc->window_size.y - bg_height) / 2.0f, rc->window_size.x, bg_height};
         const float bg_rect_outline_size = VIEW_SCALE;
-        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y - bg_rect_outline_size, bg_rect.width, bg_rect.height + (bg_rect_outline_size * 2.0f)}, WHITE);
-        RenderRect(rc, bg_rect, BLACK);
+
+        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y - bg_rect_outline_size, bg_rect.width, bg_rect_outline_size}, WHITE);
+        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y + bg_rect.height, bg_rect.width, bg_rect_outline_size}, WHITE);
+        RenderRect(rc, bg_rect, (u_v4){BLACK.rgb, DEATH_BG_ALPHA});
 
         if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("YOU DIED"), fonts, ek_font_pixel_large, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) - 40.0f}, ALIGNMENT_CENTER, WHITE, temp_mem_arena)) {
             return false;

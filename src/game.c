@@ -1,6 +1,12 @@
 #include "game.h"
 
 #define TITLE_FLICKER_INTERVAL 10
+#define TITLE_BG_ALPHA 0.8f
+#define TITLE_FADE_LERP 0.4f
+
+#define FADE_ALPHA_IN_LERP 0.25f
+#define FADE_ALPHA_OUT_LERP 0.15f
+#define FADE_ALPHA_PREC_THRESH 0.002f
 
 bool InitGame(const s_game_init_context* const zfw_context) {
     s_game* const game = zfw_context->dev_mem;
@@ -18,6 +24,7 @@ bool InitGame(const s_game_init_context* const zfw_context) {
     }
 
     game->title = true;
+    game->title_alpha = 1.0f;
 
     if (!GenLevel(&game->lvl, zfw_context->window_state.size, zfw_context->temp_mem_arena)) {
         return false;
@@ -48,52 +55,71 @@ e_game_tick_result GameTick(const s_game_tick_context* const zfw_context) {
             game->title_flicker = !game->title_flicker;
             game->title_flicker_time = 0;
         }
-    }
 
-    if (IsKeyPressed(&zfw_context->input_context, ek_key_code_x)) {
-        game->title = false;
-        game->lvl.started = true;
+        if (IsKeyPressed(&zfw_context->input_context, ek_key_code_x)) {
+            game->title = false;
+            game->lvl.started = true;
+        }
+    } else {
+        game->title_alpha = Lerp(game->title_alpha, 0.0f, TITLE_FADE_LERP);
     }
 
     e_level_update_end_result res = UpdateLevel(&game->lvl, &game->run_state, zfw_context);
-
-    if (IsKeyPressed(&zfw_context->input_context, ek_key_code_r)) { // TODO: Remove!
-        res = ek_level_update_end_result_restart;
-    }
 
     switch (res) {
         case ek_level_update_end_result_normal:
             break;
 
         case ek_level_update_end_result_restart:
-            {
-                ZERO_OUT(game->lvl);
-
-                if (!GenLevel(&game->lvl, zfw_context->window_state.size, zfw_context->temp_mem_arena)) {
-                    return ek_game_tick_result_error;
-                }
-
-                game->title = true;
-                game->run_state = (s_game_run_state){
-                    .lvl_num = 1
-                };
-            }
-
+            game->fade = ek_fade_restart;
             break;
 
         case ek_level_update_end_result_next:
-            {
-                ZERO_OUT(game->lvl);
+            game->fade = ek_fade_next;
+            break;
+    }
 
-                if (!GenLevel(&game->lvl, zfw_context->window_state.size, zfw_context->temp_mem_arena)) {
-                    return ek_game_tick_result_error;
-                }
+    if (game->fade != ek_fade_none) {
+        if (game->fade_alpha <= 1.0f - FADE_ALPHA_PREC_THRESH) {
+            game->fade_alpha = Lerp(game->fade_alpha, 1.0f, FADE_ALPHA_IN_LERP);
+        } else {
+            switch (game->fade) {
+                case ek_fade_restart:
+                    ZERO_OUT(game->lvl);
 
-                game->lvl.started = true;
-                game->run_state.lvl_num++;
+                    if (!GenLevel(&game->lvl, zfw_context->window_state.size, zfw_context->temp_mem_arena)) {
+                        return ek_game_tick_result_error;
+                    }
+
+                    game->title = true;
+                    game->title_alpha = 1.0f;
+                    game->title_flicker = false;
+                    game->title_flicker_time = 0;
+                    game->run_state = (s_game_run_state){
+                        .lvl_num = 1
+                    };
+
+                    break;
+
+                case ek_fade_next:
+                    ZERO_OUT(game->lvl);
+
+                    if (!GenLevel(&game->lvl, zfw_context->window_state.size, zfw_context->temp_mem_arena)) {
+                        return ek_game_tick_result_error;
+                    }
+
+                    game->lvl.started = true;
+                    game->run_state.lvl_num++;
+
+                    break;
             }
 
-            break;
+            game->fade = ek_fade_none;
+        }
+    } else {
+        if (game->fade_alpha >= FADE_ALPHA_PREC_THRESH) {
+            game->fade_alpha = Lerp(game->fade_alpha, 0.0f, FADE_ALPHA_OUT_LERP);
+        }
     }
 
     return ek_game_tick_result_normal;
@@ -122,7 +148,7 @@ bool RenderGame(const s_game_render_context* const zfw_context) {
         return false;
     }
 
-    if (game->title) {
+    if (game->title_alpha >= 0.001f) {
 #if 0
         const s_rect screen_rect = {0.0f, 0.0f, rc->window_size.x, rc->window_size.y};
         RenderRect(rc, screen_rect, (u_v4){BLACK.rgb, 0.7f * game->title_alpha});
@@ -131,20 +157,20 @@ bool RenderGame(const s_game_render_context* const zfw_context) {
         const float bg_height = 512.0f;
         const s_rect bg_rect = {0.0f, (rc->window_size.y - bg_height) / 2.0f, rc->window_size.x, bg_height};
         const float bg_rect_outline_size = VIEW_SCALE;
-        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y - bg_rect_outline_size, bg_rect.width, bg_rect_outline_size}, WHITE);
-        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y + bg_rect.height, bg_rect.width, bg_rect_outline_size}, WHITE);
-        RenderRect(rc, bg_rect, (u_v4){0.0f, 0.0f, 0.0f, 0.8f});
+        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y - bg_rect_outline_size, bg_rect.width, bg_rect_outline_size}, (u_v4){WHITE.rgb, game->title_alpha});
+        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y + bg_rect.height, bg_rect.width, bg_rect_outline_size}, (u_v4){WHITE.rgb, game->title_alpha});
+        RenderRect(rc, bg_rect, (u_v4){BLACK.rgb, TITLE_BG_ALPHA * game->title_alpha});
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("SPELUNKY (IN C)"), &game->fonts, ek_font_pixel_very_large, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) - 168.0f}, ALIGNMENT_CENTER, WHITE, zfw_context->temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("SPELUNKY (IN C)"), &game->fonts, ek_font_pixel_very_large, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) - 168.0f}, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, game->title_alpha}, zfw_context->temp_mem_arena)) {
             return false;
         }
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("[RIGHT]/[LEFT]/[DOWN]/[UP] TO MOVE\n[X] TO ATTACK OR THROW ITEM\n[Z] TO EQUIP ITEM"), &game->fonts, ek_font_pixel_very_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 32.0f}, ALIGNMENT_CENTER, WHITE, zfw_context->temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("[RIGHT]/[LEFT]/[DOWN]/[UP] TO MOVE\n[X] TO ATTACK OR THROW ITEM\n[Z] TO EQUIP ITEM"), &game->fonts, ek_font_pixel_very_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 32.0f}, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, game->title_alpha}, zfw_context->temp_mem_arena)) {
             return false;
         }
 
         {
-            const u_v4 col = game->title_flicker ? YELLOW : WHITE;
+            const u_v4 col = {game->title_flicker ? YELLOW.rgb : WHITE.rgb, game->title_alpha};
 
             if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("PRESS [X] TO START"), &game->fonts, ek_font_pixel_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 184.0f}, ALIGNMENT_CENTER, col, zfw_context->temp_mem_arena)) {
                 return false;
@@ -152,8 +178,8 @@ bool RenderGame(const s_game_render_context* const zfw_context) {
         }
     }
 
-    if (game->fade_alpha >= 0.01f) {
-        RenderRect(rc, (s_rect){0.0f, 0.0f, rc->window_size.x, rc->window_size.y}, BLACK);
+    if (game->fade_alpha >= FADE_ALPHA_PREC_THRESH) {
+        RenderRect(rc, (s_rect){0.0f, 0.0f, rc->window_size.x, rc->window_size.y}, (u_v4){BLACK.rgb, game->fade_alpha});
     }
 
     return true;

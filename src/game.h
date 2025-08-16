@@ -317,16 +317,20 @@ typedef struct {
 } s_game_run_state;
 
 typedef enum {
-    ek_fade_reason_restart,
-} e_fade_reason;
+    ek_fade_none,
+    ek_fade_restart,
+    ek_fade_next
+} e_fade;
 
 typedef struct {
     s_texture_group textures;
     s_font_group fonts;
     s_surface lvl_surf;
     bool title;
+    float title_alpha;
     bool title_flicker;
     int title_flicker_time;
+    e_fade fade;
     float fade_alpha;
     s_level lvl;
     s_game_run_state run_state;
