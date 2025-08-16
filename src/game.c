@@ -111,15 +111,19 @@ bool RenderGame(const s_game_render_context* const zfw_context) {
 
     const s_rendering_context* const rc = &zfw_context->rendering_context;
 
+#if 0
     SetSurface(rc, &game->lvl_surf);
+#endif
 
     Clear(rc, BLACK);
     RenderLevel(&game->lvl, rc, &game->textures);
 
+#if 0
     UnsetSurface(rc);
 
     SetSurfaceShaderProg(rc, &rc->basis->builtin_shader_progs, ek_builtin_shader_prog_surface_default);
     RenderSurface(rc, &game->lvl_surf, (s_v2){0}, (s_v2){g_view_scale, g_view_scale}, false);
+#endif
 
     if (!RenderLevelUI(&game->lvl, &game->run_state, &zfw_context->rendering_context, &game->fonts, zfw_context->temp_mem_arena)) {
         return false;

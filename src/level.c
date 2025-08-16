@@ -682,7 +682,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
             }
 
             if (touching_ladder) {
-                if (!lvl->player.cant_climb && IsKeyDown(&zfw_context->input_context, ek_key_code_up)) {
+                if (!lvl->player.cant_climb && (holding_down || IsKeyDown(&zfw_context->input_context, ek_key_code_up))) {
                     lvl->player.climbing = true;
                 }
             } else {
@@ -1024,12 +1024,10 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
     const s_v2_s32 view_size = {zfw_context->window_state.size.x / g_view_scale, zfw_context->window_state.size.y / g_view_scale};
     view_dest.x = CLAMP(view_dest.x, view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
     view_dest.y = CLAMP(view_dest.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
-lvl->view_pos = view_dest;
-#if 0
-    const float view_lerp_factor = 0.2f;
+
+    const float view_lerp_factor = 0.3f;
     lvl->view_pos.x = Lerp(lvl->view_pos.x, view_dest.x, view_lerp_factor);
     lvl->view_pos.y = Lerp(lvl->view_pos.y, view_dest.y, view_lerp_factor);
-#endif
 
     lvl->view_pos.x = CLAMP(lvl->view_pos.x, view_size.x / 2.0f, (TILEMAP_WIDTH * TILE_SIZE) - (view_size.x / 2.0f));
     lvl->view_pos.y = CLAMP(lvl->view_pos.y, view_size.y / 2.0f, (TILEMAP_HEIGHT * TILE_SIZE) - (view_size.y / 2.0f));
@@ -1041,7 +1039,8 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
     const s_v2_s32 view_size = {rc->window_size.x / g_view_scale, rc->window_size.y / g_view_scale};
 
     s_matrix_4x4 lvl_view_mat = IdentityMatrix4x4();
-    TranslateMatrix4x4(&lvl_view_mat, (s_v2){-lvl->view_pos.x + (view_size.x / 2.0f), (-lvl->view_pos.y + view_size.y * 0.5f)});
+    TranslateMatrix4x4(&lvl_view_mat, (s_v2){(-lvl->view_pos.x + (view_size.x / 2.0f)) * g_view_scale, (-lvl->view_pos.y + view_size.y * 0.5f) * g_view_scale});
+    ScaleMatrix4x4(&lvl_view_mat, g_view_scale);
     SetViewMatrix(rc, &lvl_view_mat);
 
     //
