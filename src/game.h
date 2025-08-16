@@ -47,7 +47,8 @@ typedef enum {
     ek_sprite_player,
     ek_sprite_snake_enemy,
     ek_sprite_bg,
-    ek_sprite_arrow
+    ek_sprite_arrow,
+    ek_sprite_whip
 } e_sprite;
 
 typedef struct {
@@ -111,6 +112,10 @@ static s_sprite_info g_sprite_infos[] = {
     [ek_sprite_arrow] = {
         .tex = ek_texture_level,
         .src_rect = {9, 26, 6, 4}
+    },
+    [ek_sprite_whip] = {
+        .tex = ek_texture_level,
+        .src_rect = {16, 27, 8, 2}
     }
 };
 
@@ -194,6 +199,8 @@ typedef struct {
     bool cant_climb;
     bool facing_right;
     bool latching;
+    int whip_break_time;
+
 } s_player;
 
 typedef struct {

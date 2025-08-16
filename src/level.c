@@ -16,6 +16,7 @@
 #define PLAYER_CLIMB_SPD 1.0f
 #define PLAYER_ORIGIN (s_v2){0.5f, 0.5f}
 #define PLAYER_WHIP_OFFS 5.0f
+#define PLAYER_WHIP_BREAK_TIME 5
 
 #define ARROW_SIZE (s_v2_s32){TILE_SIZE, TILE_SIZE / 2}
 #define ARROW_ORIGIN (s_v2){0.5f, 0.5f}
@@ -665,9 +666,15 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
             //
             // Whipping
             //
-            if (IsKeyPressed(&zfw_context->input_context, ek_key_code_x)) {
-                const s_v2 hb_pos = {lvl->player.pos.x + (lvl->player.facing_right ? PLAYER_WHIP_OFFS : -PLAYER_WHIP_OFFS), lvl->player.pos.y};
-                SpawnHitbox(lvl, hb_pos, (s_v2){PlayerSize().x * 1.5f, PlayerSize().y}, (s_v2){0.5f, 0.5f}, 1, false);
+            if (lvl->player.whip_break_time > 0) {
+                lvl->player.whip_break_time--;
+            } else {
+                if (IsKeyPressed(&zfw_context->input_context, ek_key_code_x)) {
+                    lvl->player.whip_break_time = PLAYER_WHIP_BREAK_TIME;
+
+                    const s_v2 hb_pos = {lvl->player.pos.x + (lvl->player.facing_right ? PLAYER_WHIP_OFFS : -PLAYER_WHIP_OFFS), lvl->player.pos.y};
+                    SpawnHitbox(lvl, hb_pos, (s_v2){PlayerSize().x * 1.5f, PlayerSize().y}, (s_v2){0.5f, 0.5f}, 1, false);
+                }
             }
         }
 
@@ -941,6 +948,12 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
     if (DoesPlayerExist(lvl)) {
         const s_rect rect = GenPlayerRect(lvl->player.pos);
         RenderSprite(rc, textures, ek_sprite_player, lvl->player.pos, PLAYER_ORIGIN, (s_v2){1.0f, 1.0f}, 0.0f, WHITE);
+
+        if (lvl->player.whip_break_time > 0) {
+            const float dir_offs = (PI * 0.6f * ((float)lvl->player.whip_break_time / PLAYER_WHIP_BREAK_TIME));
+            const float dir = lvl->player.facing_right ? dir_offs - (PI * 0.1f) : PI + (PI * 0.1f) - dir_offs;
+            RenderSprite(rc, textures, ek_sprite_whip, lvl->player.pos, (s_v2){0.0f, 0.5f}, (s_v2){1.0f, 1.0f}, dir, WHITE);
+        }
     }
 
     //
