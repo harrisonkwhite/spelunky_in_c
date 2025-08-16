@@ -3,7 +3,7 @@
 
 #include <zfwc.h>
 
-#define SHOW_DEBUG_HITBOXES 1
+#define SHOW_DEBUG_HITBOXES 0
 
 #define HP_LIMIT 3
 
@@ -18,7 +18,7 @@
 
 #define GOLD_INCR 250
 
-#define VIEW_SCALE 6.0f
+#define VIEW_SCALE 8.0f
 
 #define BG_ALPHA 0.8f
 

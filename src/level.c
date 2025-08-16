@@ -27,11 +27,11 @@
 #define PLAYER_MOVE_SPD 1.5f
 #define PLAYER_MOVE_SPD_LERP 0.3f
 #define PLAYER_JUMP_HEIGHT 3.0f
-#define PLAYER_CLIMB_SPD 1.0f
+#define PLAYER_CLIMB_SPD 0.75f
 #define PLAYER_ORIGIN (s_v2){0.5f, 0.5f}
 #define PLAYER_WHIP_OFFS 5.0f
 #define PLAYER_WHIP_BREAK_TIME 5
-#define PLAYER_THROW_SPD (s_v2){3.5f, 1.0f}
+#define PLAYER_THROW_SPD (s_v2){3.5f, 1.5f}
 
 #define ARROW_SIZE (s_v2_s32){TILE_SIZE, TILE_SIZE / 2}
 #define ARROW_ORIGIN (s_v2){0.5f, 0.5f}
@@ -719,21 +719,16 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
         //
         // Player Movement
         //
+        int move_axis = IsKeyDown(&zfw_context->input_context, ek_key_code_right) - IsKeyDown(&zfw_context->input_context, ek_key_code_left);
+
         {
             s_player* const player = &lvl->player;
 
             const bool holding_down = IsKeyDown(&zfw_context->input_context, ek_key_code_down);
-            int move_axis = IsKeyDown(&zfw_context->input_context, ek_key_code_right) - IsKeyDown(&zfw_context->input_context, ek_key_code_left);
 
             if (player->latching) {
                 move_axis = 0;
-            }
-
-            if (move_axis == 1) {
-                player->facing_right = true;
-            } else if (move_axis == -1) {
-                player->facing_right = false;
-            }
+            } 
 
             const float vel_x_dest = PLAYER_MOVE_SPD * move_axis;
             player->vel.x = Lerp(player->vel.x, vel_x_dest, PLAYER_MOVE_SPD_LERP);
@@ -769,11 +764,11 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
                         }
                     }
 
-                    if (tile_rect.y <= rect.y && *STATIC_ARRAY_ELEM(g_tile_states_solid, t->state)) {
+                    if (tile_rect.y <= rect.y && *STATIC_ARRAY_ELEM(g_tile_states_solid, t->state) && *STATIC_ARRAY_ELEM(g_tile_states_platform, t->state) == ek_tile_not_platform) {
                         break;
                     }
 
-                    if (tile_rect.y > rect.y && *STATIC_ARRAY_ELEM(g_tile_states_solid, t->state)) {
+                    if (tile_rect.y > rect.y && *STATIC_ARRAY_ELEM(g_tile_states_solid, t->state) && *STATIC_ARRAY_ELEM(g_tile_states_platform, t->state) == ek_tile_not_platform) {
                         possible_latch_targ = (s_v2_s32){tx, ty};
                         break;
                     }
@@ -855,6 +850,14 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
             //
             if (lvl->player.whip_break_time > 0) {
                 lvl->player.whip_break_time--;
+            }
+
+            if (lvl->player.whip_break_time == 0) {
+                if (move_axis == 1) {
+                    player->facing_right = true;
+                } else if (move_axis == -1) {
+                    player->facing_right = false;
+                }
             }
 
             if (IsKeyPressed(&zfw_context->input_context, ek_key_code_x)) {
@@ -1216,7 +1219,7 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
             const float dir_offs = (PI * 0.8f * ((float)lvl->player.whip_break_time / PLAYER_WHIP_BREAK_TIME));
             const float dir = lvl->player.facing_right ? dir_offs - (PI * 0.2f) : PI + (PI * 0.2f) - dir_offs;
             const s_v2 pos_offs = LenDir(2.0f, dir);
-            RenderSprite(rc, textures, ek_sprite_whip, V2Sum(lvl->player.pos, pos_offs), (s_v2){0.0f, 0.5f}, (s_v2){1.0f, 1.0f}, dir, WHITE);
+            RenderSprite(rc, textures, ek_sprite_whip, V2Sum(lvl->player.pos, pos_offs), (s_v2){0.0f, 0.5f}, (s_v2){1.0f, lvl->player.facing_right ? 1.0f : -1.0f}, dir, WHITE);
         }
 
         if (lvl->player.holding_item) {
