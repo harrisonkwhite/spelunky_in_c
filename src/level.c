@@ -816,7 +816,8 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
 
                     const s_tile* const t = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, ty, tx);
 
-                    const s_rect tile_rect = GenTileCollider(tx, ty, t->state);
+                    //const s_rect tile_rect = GenTileCollider(tx, ty, t->state);
+                    const s_rect tile_rect = {tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE};
 
                     if (move_axis == 1) {
                         if (rect.x + rect.width + 1.0f < tile_rect.x) {
