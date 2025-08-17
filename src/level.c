@@ -420,14 +420,14 @@ static void SpawnItemDrop(s_level* const lvl, const s_v2 pos, const s_v2 vel, co
     };
 }
 
-static s_v2 ItemDropSize(const s_v2 pos, const e_item_type type) {
+static s_v2 ItemDropSize(const e_item_type type) {
     const e_sprite spr = *STATIC_ARRAY_ELEM(g_item_type_sprs, type);
     const s_v2_s32 size = RectS32Size(STATIC_ARRAY_ELEM(g_sprite_infos, spr)->src_rect);
     return (s_v2){size.x, size.y};
 }
 
 static s_rect GenItemDropRect(const s_v2 pos, const e_item_type type) {
-    const s_v2 size = ItemDropSize(pos, type);
+    const s_v2 size = ItemDropSize(type);
     return (s_rect){
         pos.x - (size.x * ITEM_DROP_ORIGIN.x),
         pos.y - (size.y * ITEM_DROP_ORIGIN.y),
@@ -554,7 +554,6 @@ bool GenLevel(s_level* const lvl, const s_v2_s32 window_size, const s_game_run_s
         STATIC_ARRAY_2D_ELEM(tm->tiles, TILEMAP_HEIGHT - 1, tx)->state = ek_tile_state_dirt;
     }
 
-#if 0
     // Add random rock items.
     for (int ty = 1; ty < TILEMAP_HEIGHT; ty++) {
         for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
@@ -563,13 +562,17 @@ bool GenLevel(s_level* const lvl, const s_v2_s32 window_size, const s_game_run_s
 
             if (t->state == ek_tile_state_dirt && t_above->state == ek_tile_state_empty) {
                 if (RandPerc() < 0.05f) {
-                    const s_v2 drop_pos = {(tx + 0.5f) * TILE_SIZE, (ty - 0.5f) * TILE_SIZE};
-                    SpawnItemDrop(lvl, drop_pos, (s_v2){0}, ek_item_type_rock);
+                    const e_item_type drop_type = ek_item_type_rock;
+                    const s_v2 drop_dummy_pos = {(tx + 0.5f) * TILE_SIZE, (ty + 0.5f) * TILE_SIZE};
+                    const s_rect drop_dummy_collider = GenItemDropRect(drop_dummy_pos, drop_type);
+                    const float drop_dummy_collider_bottom = drop_dummy_collider.y + drop_dummy_collider.height;
+                    const float tile_top = ty * TILE_SIZE;
+
+                    SpawnItemDrop(lvl, (s_v2){drop_dummy_pos.x, drop_dummy_pos.y - (drop_dummy_collider_bottom - tile_top)}, (s_v2){0}, ek_item_type_rock);
                 }
             }
         }
     }
-#endif
 
     //
     lvl->hp = HP_LIMIT;
@@ -655,7 +658,7 @@ static void SpawnBloodParticles(s_level* const lvl, const s_v2 pos, const bool b
     const float base_dir_offs = RandPerc() * TAU;
 
     for (int i = 0; i < pt_cnt; i++) {
-        const float dir = (((float)i / pt_cnt) * TAU) + RandRange(-PI * 0.2f, PI * 0.2f) + base_dir_offs;
+        const float dir = (((float)i / pt_cnt) * TAU) + RandRange(-PI * 0.1f, PI * 0.1f) + base_dir_offs;
         const s_v2 vel = LenDir(RandRange(2.0f, 4.0f), dir);
 
         s_particle* const pt = SpawnParticle(lvl, pos, vel, TAU * RandPerc());
@@ -677,7 +680,7 @@ static void SpawnGoldParticles(s_level* const lvl, const s_v2 pos) {
     const float base_dir_offs = RandPerc() * TAU;
 
     for (int i = 0; i < pt_cnt; i++) {
-        const float dir = (((float)i / pt_cnt) * TAU) + RandRange(-PI * 0.3f, PI * 0.3f) + base_dir_offs;
+        const float dir = (((float)i / pt_cnt) * TAU) + RandRange(-PI * 0.15f, PI * 0.15f) + base_dir_offs;
         const s_v2 vel = LenDir(RandRange(1.5f, 3.0f), dir);
 
         s_particle* const pt = SpawnParticle(lvl, pos, vel, TAU * RandPerc());
@@ -1033,12 +1036,12 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
 
             drop->vel.y += GRAVITY;
 
-            ProcSolidTileCollisions(&drop->pos, &drop->vel, ItemDropSize(drop->pos, drop->type), ITEM_DROP_ORIGIN, &lvl->tilemap, false);
+            ProcSolidTileCollisions(&drop->pos, &drop->vel, ItemDropSize(drop->type), ITEM_DROP_ORIGIN, &lvl->tilemap, false);
 
             drop->pos = V2Sum(drop->pos, drop->vel);
 
             if (Mag(drop->vel) >= ITEM_DROP_PICKUP_MAG) {
-                SpawnHitbox(lvl, drop->pos, ItemDropSize(drop->pos, drop->type), ITEM_DROP_ORIGIN, 1, false);
+                SpawnHitbox(lvl, drop->pos, ItemDropSize(drop->type), ITEM_DROP_ORIGIN, 1, false);
                 TriggerHorShooters(lvl, drop->pos.x / TILE_SIZE, drop->pos.y / TILE_SIZE);
             }
         }
@@ -1192,6 +1195,12 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
     // View
     //
     const s_v2 view_dest = lvl->player.pos;
+#if 0
+    const s_v2 view_dest = {
+        Lerp(lvl->player.pos.x, TILEMAP_WIDTH * TILE_SIZE * 0.5f, 0.1f),
+        Lerp(lvl->player.pos.y, TILEMAP_HEIGHT * TILE_SIZE * 0.5f, 0.1f)
+    };
+#endif
 
     const float view_lerp_factor = 0.3f;
     lvl->view_pos_no_shake.x = Lerp(lvl->view_pos_no_shake.x, view_dest.x, view_lerp_factor);
@@ -1357,8 +1366,6 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
             ceilf((view_pos.x + (view_size.x / 2.0f)) / TILE_SIZE),
             ceilf((view_pos.y + (view_size.y / 2.0f)) / TILE_SIZE)
         };
-
-        LOG("%d", top_left.x);
 
         for (int ty = top_left.y; ty < bottom_right.y; ty++) {
             for (int tx = top_left.x; tx < bottom_right.x; tx++) {
