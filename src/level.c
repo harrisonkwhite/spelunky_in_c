@@ -16,7 +16,7 @@
 
 // Check tiles to the right. If the topmost tile has a 
 
-#define POST_START_WAIT_TIME_MAX 60
+#define POST_START_WAIT_TIME_MAX 45
 #define LEAVING_WAIT_TIME_MAX 30
 
 #define GRAVITY 0.4f
@@ -710,7 +710,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
         if (lvl->post_start_wait_time < POST_START_WAIT_TIME_MAX) {
             lvl->post_start_wait_time++;
 
-            if (lvl->post_start_wait_time >= POST_START_WAIT_TIME_MAX / 2) {
+            if (lvl->post_start_wait_time >= 15) {
                 // LOL THIS IS SO BAD
                 for (int ty = 0; ty < TILEMAP_HEIGHT; ty++) {
                     for (int tx = 0; tx < TILEMAP_WIDTH; tx++) {
@@ -1172,7 +1172,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
             Shake(lvl, 3.0f);
         }
 
-        if (IsKeyPressed(&zfw_context->input_context, ek_key_code_x)) {
+        if (IsKeyPressed(&zfw_context->input_context, ek_key_code_enter)) {
             end_res = ek_level_update_end_result_restart;
         }
 
@@ -1561,7 +1561,7 @@ bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_s
             return false;
         }
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("PRESS [X] TO RESTART"), fonts, ek_font_pixel_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 44.0f}, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, lvl->death_alpha}, temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("PRESS [ENTER] TO RESTART"), fonts, ek_font_pixel_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 44.0f}, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, lvl->death_alpha}, temp_mem_arena)) {
             return false;
         }
     }

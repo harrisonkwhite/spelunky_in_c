@@ -43,7 +43,7 @@ e_game_tick_result GameTick(const s_game_tick_context* const zfw_context) {
             game->title_flicker_time = 0;
         }
 
-        if (IsKeyPressed(&zfw_context->input_context, ek_key_code_x)) {
+        if (IsKeyPressed(&zfw_context->input_context, ek_key_code_enter)) {
             game->title = false;
             game->lvl.started = true;
         }
@@ -64,6 +64,10 @@ e_game_tick_result GameTick(const s_game_tick_context* const zfw_context) {
         case ek_level_update_end_result_next:
             game->fade = ek_fade_next;
             break;
+    }
+
+    if (IsKeyPressed(&zfw_context->input_context, ek_key_code_r)) {
+        game->fade = ek_fade_restart;
     }
 
     if (game->fade != ek_fade_none) {
@@ -160,7 +164,7 @@ bool RenderGame(const s_game_render_context* const zfw_context) {
         {
             const u_v4 col = {game->title_flicker ? YELLOW.rgb : WHITE.rgb, game->title_alpha};
 
-            if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("PRESS [X] TO START"), &game->fonts, ek_font_pixel_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 184.0f}, ALIGNMENT_CENTER, col, zfw_context->temp_mem_arena)) {
+            if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("PRESS [ENTER] TO START"), &game->fonts, ek_font_pixel_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 184.0f}, ALIGNMENT_CENTER, col, zfw_context->temp_mem_arena)) {
                 return false;
             }
         }
