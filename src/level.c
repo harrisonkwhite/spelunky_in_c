@@ -626,9 +626,10 @@ static void TriggerHorShooters(s_level* const lvl, const int tx_center, const in
         s_tile* const tile = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, ty, tx);
 
         if (tile->state == ek_tile_state_shooter && !tile->shooter_shot && !tile->shooter_facing_right) {
-            SpawnArrow(lvl, (s_v2){(tx + 0.5f) * TILE_SIZE, (ty + 0.5f) * TILE_SIZE}, false);
+            s_v2 arrow_pos = (s_v2){(tx + 0.5f) * TILE_SIZE, (ty + 0.5f) * TILE_SIZE};
+            arrow_pos.y++;
+            SpawnArrow(lvl, arrow_pos, false);
             Shake(lvl, shake_amount);
-
             tile->shooter_shot = true;
             break;
         }
@@ -643,7 +644,9 @@ static void TriggerHorShooters(s_level* const lvl, const int tx_center, const in
         s_tile* const tile = STATIC_ARRAY_2D_ELEM(lvl->tilemap.tiles, ty, tx);
 
         if (tile->state == ek_tile_state_shooter && !tile->shooter_shot && tile->shooter_facing_right) {
-            SpawnArrow(lvl, (s_v2){(tx + 0.5f) * TILE_SIZE, (ty + 0.5f) * TILE_SIZE}, true);
+            s_v2 arrow_pos = (s_v2){(tx + 0.5f) * TILE_SIZE, (ty + 0.5f) * TILE_SIZE};
+            arrow_pos.y++;
+            SpawnArrow(lvl, arrow_pos, true);
             Shake(lvl, shake_amount);
             tile->shooter_shot = true;
             break;
