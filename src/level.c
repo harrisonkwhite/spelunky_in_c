@@ -25,12 +25,13 @@
 
 #define PLAYER_MOVE_SPD 1.5f
 #define PLAYER_MOVE_SPD_LERP 0.3f
-#define PLAYER_JUMP_HEIGHT 3.0f
+#define PLAYER_JUMP_HEIGHT 1.75
 #define PLAYER_CLIMB_SPD 1.0f
 #define PLAYER_ORIGIN (s_v2){0.5f, 0.5f}
 #define PLAYER_WHIP_OFFS 5.0f
 #define PLAYER_WHIP_BREAK_TIME 5
 #define PLAYER_THROW_SPD (s_v2){3.5f, 1.5f}
+#define PLAYER_JUMP_TIME_LIMIT 5
 
 #define ARROW_SIZE (s_v2_s32){TILE_SIZE, TILE_SIZE / 2}
 #define ARROW_ORIGIN (s_v2){0.5f, 0.5f}
@@ -839,19 +840,19 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
             const bool touching_ladder = CheckTileCollisionWithState(NULL, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_ladder) || CheckTileCollisionWithState(NULL, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_ladder_platform);
 
             if (on_ground) {
-                lvl->player.jumping = false;
+                lvl->player.jump_time = 0;
                 lvl->player.cant_climb = false;
             }
 
-            if (lvl->player.jumping && !IsKeyDown(&zfw_context->input_context, ek_key_code_up)) {
-                lvl->player.vel.y = MAX(0.0f, lvl->player.vel.y);
-                lvl->player.jumping = false;
+            if (lvl->player.jump_time > 0 && !IsKeyDown(&zfw_context->input_context, ek_key_code_up)) {
+                //lvl->player.vel.y = MAX(0.0f, lvl->player.vel.y);
+                lvl->player.jump_time = 0;
             }
 
             if (touching_ladder) {
                 if (!lvl->player.cant_climb && (holding_down || IsKeyDown(&zfw_context->input_context, ek_key_code_up))) {
                     lvl->player.climbing = true;
-                    lvl->player.jumping = false;
+                    lvl->player.jump_time = 0;
                 }
             } else {
                 if (lvl->player.climbing) {
@@ -874,9 +875,14 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
                 }
             }
 
-            if (!lvl->player.climbing && (on_ground || lvl->player.latching)) {
+            if (lvl->player.jump_time > 0 && lvl->player.jump_time < PLAYER_JUMP_TIME_LIMIT && IsKeyDown(&zfw_context->input_context, ek_key_code_up)) {
+                lvl->player.vel.y = -PLAYER_JUMP_HEIGHT;
+                lvl->player.jump_time++;
+            }
+
+            if (lvl->player.jump_time == 0 && !lvl->player.climbing && (on_ground || lvl->player.latching)) {
                 if (IsKeyPressed(&zfw_context->input_context, ek_key_code_up)) {
-                    lvl->player.jumping = true;
+                    lvl->player.jump_time = 1;
                     lvl->player.vel.y = -PLAYER_JUMP_HEIGHT;
                     lvl->player.latching = false;
                 }
@@ -901,7 +907,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
                 if (new_rect.y >= possible_latch_targ_tile_rect.y) {
                     lvl->player.pos.x = roundf(lvl->player.pos.x);
                     lvl->player.latching = true;
-                    lvl->player.jumping = false;
+                    lvl->player.jump_time = 0;
                     lvl->player.pos.y -= new_rect.y - possible_latch_targ_tile_rect.y;
                     lvl->player.vel = (s_v2){0};
                 }
@@ -1056,7 +1062,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
         }
 
         // Item drop collection
-        if (!lvl->player.holding_item) {
+        if (DoesPlayerExist(lvl) && !lvl->player.holding_item) {
             const s_rect player_collider = GenPlayerRect(lvl->player.pos);
 
             for (int i = 0; i < STATIC_ARRAY_LEN(lvl->item_drops); i++) {
@@ -1088,30 +1094,26 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
     //
     // Arrows
     //
-    {
-        const s_rect player_collider = GenPlayerRect(lvl->player.pos);
+    for (int i = 0; i < lvl->arrow_cnt; i++) {
+        s_arrow* const arrow = STATIC_ARRAY_ELEM(lvl->arrows, i);
 
-        for (int i = 0; i < lvl->arrow_cnt; i++) {
-            s_arrow* const arrow = STATIC_ARRAY_ELEM(lvl->arrows, i);
+        s_rect colliders[2];
 
-            s_rect colliders[2];
+        *STATIC_ARRAY_ELEM(colliders, 0) = GenArrowRect(arrow->pos);
 
-            *STATIC_ARRAY_ELEM(colliders, 0) = GenArrowRect(arrow->pos);
+        arrow->pos.x += ARROW_SPD * (arrow->right ? 1.0f : -1.0f);
 
-            arrow->pos.x += ARROW_SPD * (arrow->right ? 1.0f : -1.0f);
+        *STATIC_ARRAY_ELEM(colliders, 1) = GenArrowRect(arrow->pos);
 
-            *STATIC_ARRAY_ELEM(colliders, 1) = GenArrowRect(arrow->pos);
+        const s_rect collider_for_checking = GenSpanningRect((s_rect_array_view)ARRAY_FROM_STATIC(colliders));
 
-            const s_rect collider_for_checking = GenSpanningRect((s_rect_array_view)ARRAY_FROM_STATIC(colliders));
-
-            if (CheckSolidTileCollision(collider_for_checking, 0.0f, &lvl->tilemap, true, true)) {
-                *arrow = *STATIC_ARRAY_ELEM(lvl->arrows, lvl->arrow_cnt - 1);
-                lvl->arrow_cnt--;
-                i--;
-            }
-
-            SpawnHitbox(lvl, RectPos(collider_for_checking), RectSize(collider_for_checking), (s_v2){0}, 1, true);
+        if (CheckSolidTileCollision(collider_for_checking, 0.0f, &lvl->tilemap, true, true)) {
+            *arrow = *STATIC_ARRAY_ELEM(lvl->arrows, lvl->arrow_cnt - 1);
+            lvl->arrow_cnt--;
+            i--;
         }
+
+        SpawnHitbox(lvl, RectPos(collider_for_checking), RectSize(collider_for_checking), (s_v2){0}, 1, true);
     }
 
     //
@@ -1229,6 +1231,10 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
     //
     // Interactp opopoipoio;
     //hsdkljashjkldhakshdlk
+    if (!DoesPlayerExist(lvl)) {
+        lvl->interact_popup_type = ek_interact_popup_type_none;
+    }
+
     if (lvl->interact_popup_type != ek_interact_popup_type_none) {
         lvl->interact_popup_type_cache = lvl->interact_popup_type;
         lvl->interact_popup_alpha = Lerp(lvl->interact_popup_alpha, 1.0f, 0.5f);

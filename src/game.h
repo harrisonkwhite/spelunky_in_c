@@ -255,7 +255,7 @@ typedef struct {
 typedef struct {
     s_v2 pos;
     s_v2 vel;
-    bool jumping;
+    int jump_time;
     bool climbing;
     bool cant_climb;
     bool facing_right;
