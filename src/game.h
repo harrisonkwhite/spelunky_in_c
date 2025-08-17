@@ -3,7 +3,7 @@
 
 #include <zfwc.h>
 
-#define SHOW_DEBUG_HITBOXES 1
+#define SHOW_DEBUG_HITBOXES 0
 
 #define HP_LIMIT 3
 
@@ -255,6 +255,7 @@ typedef struct {
 typedef struct {
     s_v2 pos;
     s_v2 vel;
+    bool jumping;
     bool climbing;
     bool cant_climb;
     bool facing_right;

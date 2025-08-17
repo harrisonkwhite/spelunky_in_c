@@ -788,7 +788,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
 
             if (player->latching) {
                 move_axis = 0;
-            } 
+            }
 
             const float vel_x_dest = PLAYER_MOVE_SPD * move_axis;
             player->vel.x = Lerp(player->vel.x, vel_x_dest, PLAYER_MOVE_SPD_LERP);
@@ -839,12 +839,19 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
             const bool touching_ladder = CheckTileCollisionWithState(NULL, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_ladder) || CheckTileCollisionWithState(NULL, GenPlayerRect(lvl->player.pos), &lvl->tilemap, ek_tile_state_ladder_platform);
 
             if (on_ground) {
+                lvl->player.jumping = false;
                 lvl->player.cant_climb = false;
+            }
+
+            if (lvl->player.jumping && !IsKeyDown(&zfw_context->input_context, ek_key_code_up)) {
+                lvl->player.vel.y = MAX(0.0f, lvl->player.vel.y);
+                lvl->player.jumping = false;
             }
 
             if (touching_ladder) {
                 if (!lvl->player.cant_climb && (holding_down || IsKeyDown(&zfw_context->input_context, ek_key_code_up))) {
                     lvl->player.climbing = true;
+                    lvl->player.jumping = false;
                 }
             } else {
                 if (lvl->player.climbing) {
@@ -869,6 +876,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
 
             if (!lvl->player.climbing && (on_ground || lvl->player.latching)) {
                 if (IsKeyPressed(&zfw_context->input_context, ek_key_code_up)) {
+                    lvl->player.jumping = true;
                     lvl->player.vel.y = -PLAYER_JUMP_HEIGHT;
                     lvl->player.latching = false;
                 }
@@ -893,6 +901,7 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
                 if (new_rect.y >= possible_latch_targ_tile_rect.y) {
                     lvl->player.pos.x = roundf(lvl->player.pos.x);
                     lvl->player.latching = true;
+                    lvl->player.jumping = false;
                     lvl->player.pos.y -= new_rect.y - possible_latch_targ_tile_rect.y;
                     lvl->player.vel = (s_v2){0};
                 }
