@@ -24,7 +24,8 @@
 
 #define WHITE_SPECIAL (u_v4){235.0f / 255.0f, 237.0f / 255.0f, 233.0f / 255.0f, 1.0f}
 #define BLACK_SPECIAL (u_v4){9.0f / 255.0f, 10.0f / 255.0f, 20.0f / 255.0f, 1.0f}
-#define YELLOW_SPECIAL (u_v4){232.0f / 255.0f, 193.0f / 255.0f, 112.0f / 255.0f, 1.0f}
+#define YELLOW_SPECIAL (u_v4){222.0f / 255.0f, 158.0f / 255.0f, 65.0f / 255.0f, 1.0f}
+#define YELLOW_BRIGHT_SPECIAL (u_v4){232.0f / 255.0f, 193.0f / 255.0f, 112.0f / 255.0f, 1.0f}
 #define RED_SPECIAL (u_v4){165.0f / 255.0f, 48.0f / 255.0f, 48.0f / 255.0f, 1.0f}
 
 extern float g_view_scale;

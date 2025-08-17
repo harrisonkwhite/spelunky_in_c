@@ -162,7 +162,7 @@ bool RenderGame(const s_game_render_context* const zfw_context) {
         }
 
         {
-            const u_v4 col = {game->title_flicker ? YELLOW_SPECIAL.rgb : WHITE_SPECIAL.rgb, game->title_alpha};
+            const u_v4 col = {game->title_flicker ? YELLOW_BRIGHT_SPECIAL.rgb : WHITE_SPECIAL.rgb, game->title_alpha};
 
             if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("PRESS [ENTER] TO START"), &game->fonts, ek_font_pixel_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 184.0f}, ALIGNMENT_CENTER, col, zfw_context->temp_mem_arena)) {
                 return false;
