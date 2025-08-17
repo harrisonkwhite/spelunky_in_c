@@ -381,7 +381,6 @@ typedef enum {
 typedef struct {
     s_texture_group textures;
     s_font_group fonts;
-    s_surface lvl_surf;
     bool title;
     float title_alpha;
     bool title_flicker;

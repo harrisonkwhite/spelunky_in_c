@@ -18,10 +18,6 @@ bool InitGame(const s_game_init_context* const zfw_context) {
         return false;
     }
 
-    if (!InitSurface(&game->lvl_surf, (s_v2_s32){zfw_context->window_state.size.x / VIEW_SCALE, zfw_context->window_state.size.y / VIEW_SCALE}, zfw_context->gl_res_arena)) {
-        return false;
-    }
-
     game->title = true;
     game->title_alpha = 1.0f;
 
@@ -38,14 +34,6 @@ bool InitGame(const s_game_init_context* const zfw_context) {
 
 e_game_tick_result GameTick(const s_game_tick_context* const zfw_context) {
     s_game* const game = zfw_context->dev_mem;
-
-    const s_v2_s32 lvl_surf_size_ideal = {zfw_context->window_state.size.x / VIEW_SCALE, zfw_context->window_state.size.y / VIEW_SCALE};
-
-    if (!V2S32sEqual(game->lvl_surf.size, lvl_surf_size_ideal)) {
-        if (!ResizeSurface(&game->lvl_surf, lvl_surf_size_ideal)) {
-            return ek_game_tick_result_error;
-        }
-    }
 
     if (game->title) {
         if (game->title_flicker_time < TITLE_FLICKER_INTERVAL) {
