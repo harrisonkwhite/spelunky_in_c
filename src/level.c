@@ -668,7 +668,7 @@ static void SpawnBloodParticles(s_level* const lvl, const s_v2 pos, const bool b
             return;
         }
 
-        pt->blend = RED;
+        pt->blend = RED_SPECIAL;
 
         const float scale = RandRange(1.0f, 1.5f);
         pt->scale = (s_v2){scale, scale};
@@ -690,7 +690,7 @@ static void SpawnGoldParticles(s_level* const lvl, const s_v2 pos) {
             return;
         }
 
-        pt->blend = YELLOW;
+        pt->blend = YELLOW_SPECIAL;
 
         const float scale = RandRange(1.0f, 1.5f);
         pt->scale = (s_v2){scale, scale};
@@ -1429,7 +1429,7 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
 #if SHOW_DEBUG_HITBOXES
     for (int i = 0; i < lvl->hitbox_cnt; i++) {
         const s_hitbox* const hb = STATIC_ARRAY_ELEM(lvl->hitboxes, i);
-        RenderRect(rc, hb->rect, (u_v4){RED.rgb, 0.5f});
+        RenderRect(rc, hb->rect, (u_v4){RED_SPECIAL.rgb, 0.5f});
     }
 #endif
 
