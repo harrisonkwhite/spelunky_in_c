@@ -126,7 +126,7 @@ bool RenderGame(const s_game_render_context* const zfw_context) {
     SetSurface(rc, &game->lvl_surf);
 #endif
 
-    Clear(rc, BLACK);
+    Clear(rc, BLACK_SPECIAL);
     RenderLevel(&game->lvl, rc, &game->textures);
 
 #if 0
@@ -143,26 +143,26 @@ bool RenderGame(const s_game_render_context* const zfw_context) {
     if (game->title_alpha >= 0.001f) {
 #if 0
         const s_rect screen_rect = {0.0f, 0.0f, rc->window_size.x, rc->window_size.y};
-        RenderRect(rc, screen_rect, (u_v4){BLACK.rgb, 0.7f * game->title_alpha});
+        RenderRect(rc, screen_rect, (u_v4){BLACK_SPECIAL.rgb, 0.7f * game->title_alpha});
 #endif
 
         const float bg_height = 540.0f;
         const s_rect bg_rect = {0.0f, (rc->window_size.y - bg_height) / 2.0f, rc->window_size.x, bg_height};
         const float bg_rect_outline_size = VIEW_SCALE;
-        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y - bg_rect_outline_size, bg_rect.width, bg_rect_outline_size}, (u_v4){WHITE.rgb, game->title_alpha});
-        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y + bg_rect.height, bg_rect.width, bg_rect_outline_size}, (u_v4){WHITE.rgb, game->title_alpha});
-        RenderRect(rc, bg_rect, (u_v4){BLACK.rgb, BG_ALPHA * game->title_alpha});
+        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y - bg_rect_outline_size, bg_rect.width, bg_rect_outline_size}, (u_v4){WHITE_SPECIAL.rgb, game->title_alpha});
+        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y + bg_rect.height, bg_rect.width, bg_rect_outline_size}, (u_v4){WHITE_SPECIAL.rgb, game->title_alpha});
+        RenderRect(rc, bg_rect, (u_v4){BLACK_SPECIAL.rgb, BG_ALPHA * game->title_alpha});
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("SPELUNKY (IN C)"), &game->fonts, ek_font_pixel_very_large, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) - 168.0f}, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, game->title_alpha}, zfw_context->temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("SPELUNKY (IN C)"), &game->fonts, ek_font_pixel_very_large, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) - 168.0f}, ALIGNMENT_CENTER, (u_v4){WHITE_SPECIAL.rgb, game->title_alpha}, zfw_context->temp_mem_arena)) {
             return false;
         }
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("[RIGHT]/[LEFT]/[DOWN]/[UP] TO MOVE\n[X] TO ATTACK\n[Z] TO INTERACT"), &game->fonts, ek_font_pixel_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 20.0f}, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, game->title_alpha}, zfw_context->temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("[RIGHT]/[LEFT]/[DOWN]/[UP] TO MOVE\n[X] TO ATTACK\n[Z] TO INTERACT"), &game->fonts, ek_font_pixel_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 20.0f}, ALIGNMENT_CENTER, (u_v4){WHITE_SPECIAL.rgb, game->title_alpha}, zfw_context->temp_mem_arena)) {
             return false;
         }
 
         {
-            const u_v4 col = {game->title_flicker ? YELLOW.rgb : WHITE.rgb, game->title_alpha};
+            const u_v4 col = {game->title_flicker ? YELLOW.rgb : WHITE_SPECIAL.rgb, game->title_alpha};
 
             if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("PRESS [ENTER] TO START"), &game->fonts, ek_font_pixel_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 184.0f}, ALIGNMENT_CENTER, col, zfw_context->temp_mem_arena)) {
                 return false;
@@ -171,7 +171,7 @@ bool RenderGame(const s_game_render_context* const zfw_context) {
     }
 
     if (game->fade_alpha >= FADE_ALPHA_PREC_THRESH) {
-        RenderRect(rc, (s_rect){0.0f, 0.0f, rc->window_size.x, rc->window_size.y}, (u_v4){BLACK.rgb, game->fade_alpha});
+        RenderRect(rc, (s_rect){0.0f, 0.0f, rc->window_size.x, rc->window_size.y}, (u_v4){BLACK_SPECIAL.rgb, game->fade_alpha});
     }
 
     return true;

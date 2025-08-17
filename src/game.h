@@ -22,6 +22,9 @@
 
 #define BG_ALPHA 0.9f
 
+#define WHITE_SPECIAL (u_v4){235.0f / 255.0f, 237.0f / 255.0f, 233.0f / 255.0f, 1.0f}
+#define BLACK_SPECIAL (u_v4){9.0f / 255.0f, 10.0f / 255.0f, 20.0f / 255.0f, 1.0f}
+
 extern float g_view_scale;
 
 typedef enum {

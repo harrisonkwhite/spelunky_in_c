@@ -386,7 +386,7 @@ static s_particle* SpawnParticle(s_level* const lvl, const s_v2 pos, const s_v2 
         .pos = pos,
         .vel = vel,
         .rot = rot,
-        .blend = WHITE,
+        .blend = WHITE_SPECIAL,
         .scale = V2_ONE,
         .active = true
     };
@@ -1353,7 +1353,7 @@ void RenderLevel(const s_level* const lvl, const s_rendering_context* const rc, 
         if (lvl->item_drop_hovered_index == i) {
             // should use shader for this but im outta time
             const s_rect drop_rect = GenItemDropRect(drop->pos, drop->type);
-            RenderRect(rc, (s_rect){drop_rect.x - 1.0f, drop_rect.y - 1.0f, drop_rect.width + 2.0f, drop_rect.height + 2.0f}, WHITE);
+            RenderRect(rc, (s_rect){drop_rect.x - 1.0f, drop_rect.y - 1.0f, drop_rect.width + 2.0f, drop_rect.height + 2.0f}, WHITE_SPECIAL);
         }
 #endif
 
@@ -1457,9 +1457,9 @@ bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_s
 
         const float bg_rect_outline_size = VIEW_SCALE;
 
-        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y - bg_rect_outline_size, bg_rect.width + bg_rect_outline_size, bg_rect_outline_size}, (u_v4){WHITE.rgb, lvl->general_ui_alpha});
-        RenderRect(rc, (s_rect){bg_rect.x + bg_rect.width, bg_rect.y - bg_rect_outline_size, bg_rect_outline_size, bg_rect_outline_size + bg_rect.height}, (u_v4){WHITE.rgb, lvl->general_ui_alpha});
-        RenderRect(rc, bg_rect, (u_v4){BLACK.rgb, BG_ALPHA * lvl->general_ui_alpha});
+        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y - bg_rect_outline_size, bg_rect.width + bg_rect_outline_size, bg_rect_outline_size}, (u_v4){WHITE_SPECIAL.rgb, lvl->general_ui_alpha});
+        RenderRect(rc, (s_rect){bg_rect.x + bg_rect.width, bg_rect.y - bg_rect_outline_size, bg_rect_outline_size, bg_rect_outline_size + bg_rect.height}, (u_v4){WHITE_SPECIAL.rgb, lvl->general_ui_alpha});
+        RenderRect(rc, bg_rect, (u_v4){BLACK_SPECIAL.rgb, BG_ALPHA * lvl->general_ui_alpha});
 
         char gold_str[16];
         snprintf(gold_str, sizeof(gold_str), "$%d", lvl->gold_display_cnt);
@@ -1468,7 +1468,7 @@ bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_s
         s_v2 gold_str_pos = RectCenter(bg_rect);
         gold_str_pos.y -= 6.0f;
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(gold_str), fonts, ek_font_pixel_med, gold_str_pos, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, lvl->general_ui_alpha}, temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(gold_str), fonts, ek_font_pixel_med, gold_str_pos, ALIGNMENT_CENTER, (u_v4){WHITE_SPECIAL.rgb, lvl->general_ui_alpha}, temp_mem_arena)) {
             return false;
         }
     }
@@ -1487,9 +1487,9 @@ bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_s
 
         const float bg_rect_outline_size = VIEW_SCALE;
 
-        RenderRect(rc, (s_rect){bg_rect.x - bg_rect_outline_size, bg_rect.y - bg_rect_outline_size, bg_rect.width + bg_rect_outline_size, bg_rect_outline_size}, (u_v4){WHITE.rgb, lvl->general_ui_alpha});
-        RenderRect(rc, (s_rect){bg_rect.x - bg_rect_outline_size, bg_rect.y - bg_rect_outline_size, bg_rect_outline_size, bg_rect_outline_size + bg_rect.height}, (u_v4){WHITE.rgb, lvl->general_ui_alpha});
-        RenderRect(rc, bg_rect, (u_v4){BLACK.rgb, lvl->general_ui_alpha * BG_ALPHA});
+        RenderRect(rc, (s_rect){bg_rect.x - bg_rect_outline_size, bg_rect.y - bg_rect_outline_size, bg_rect.width + bg_rect_outline_size, bg_rect_outline_size}, (u_v4){WHITE_SPECIAL.rgb, lvl->general_ui_alpha});
+        RenderRect(rc, (s_rect){bg_rect.x - bg_rect_outline_size, bg_rect.y - bg_rect_outline_size, bg_rect_outline_size, bg_rect_outline_size + bg_rect.height}, (u_v4){WHITE_SPECIAL.rgb, lvl->general_ui_alpha});
+        RenderRect(rc, bg_rect, (u_v4){BLACK_SPECIAL.rgb, lvl->general_ui_alpha * BG_ALPHA});
 
         char lvl_str[16];
         snprintf(lvl_str, sizeof(lvl_str), "LVL %d", run_state->lvl_num);
@@ -1498,7 +1498,7 @@ bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_s
         s_v2 lvl_str_pos = RectCenter(bg_rect);
         lvl_str_pos.y -= 6.0f;
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(lvl_str), fonts, ek_font_pixel_med, lvl_str_pos, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, lvl->general_ui_alpha}, temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(lvl_str), fonts, ek_font_pixel_med, lvl_str_pos, ALIGNMENT_CENTER, (u_v4){WHITE_SPECIAL.rgb, lvl->general_ui_alpha}, temp_mem_arena)) {
             return false;
         }
     }
@@ -1517,10 +1517,10 @@ bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_s
 
         const float bg_rect_outline_size = VIEW_SCALE;
 
-        RenderRect(rc, (s_rect){bg_rect.x - bg_rect_outline_size, bg_rect.y - bg_rect_outline_size, bg_rect.width + (bg_rect_outline_size * 2.0f), bg_rect_outline_size}, (u_v4){WHITE.rgb, lvl->general_ui_alpha * lvl->interact_popup_alpha});
-        RenderRect(rc, (s_rect){bg_rect.x - bg_rect_outline_size, bg_rect.y - bg_rect_outline_size, bg_rect_outline_size, bg_rect.height + bg_rect_outline_size}, (u_v4){WHITE.rgb, lvl->general_ui_alpha * lvl->interact_popup_alpha});
-        RenderRect(rc, (s_rect){bg_rect.x + bg_rect.width, bg_rect.y - bg_rect_outline_size, bg_rect_outline_size, bg_rect.height + bg_rect_outline_size}, (u_v4){WHITE.rgb, lvl->general_ui_alpha * lvl->interact_popup_alpha});
-        RenderRect(rc, bg_rect, (u_v4){BLACK.rgb, lvl->general_ui_alpha * BG_ALPHA * lvl->interact_popup_alpha});
+        RenderRect(rc, (s_rect){bg_rect.x - bg_rect_outline_size, bg_rect.y - bg_rect_outline_size, bg_rect.width + (bg_rect_outline_size * 2.0f), bg_rect_outline_size}, (u_v4){WHITE_SPECIAL.rgb, lvl->general_ui_alpha * lvl->interact_popup_alpha});
+        RenderRect(rc, (s_rect){bg_rect.x - bg_rect_outline_size, bg_rect.y - bg_rect_outline_size, bg_rect_outline_size, bg_rect.height + bg_rect_outline_size}, (u_v4){WHITE_SPECIAL.rgb, lvl->general_ui_alpha * lvl->interact_popup_alpha});
+        RenderRect(rc, (s_rect){bg_rect.x + bg_rect.width, bg_rect.y - bg_rect_outline_size, bg_rect_outline_size, bg_rect.height + bg_rect_outline_size}, (u_v4){WHITE_SPECIAL.rgb, lvl->general_ui_alpha * lvl->interact_popup_alpha});
+        RenderRect(rc, bg_rect, (u_v4){BLACK_SPECIAL.rgb, lvl->general_ui_alpha * BG_ALPHA * lvl->interact_popup_alpha});
 
         char interact_str[16] = {0};
 
@@ -1540,7 +1540,7 @@ bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_s
         s_v2 interact_str_pos = RectCenter(bg_rect);
         interact_str_pos.y -= 6.0f;
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(interact_str), fonts, ek_font_pixel_med, interact_str_pos, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, lvl->general_ui_alpha * lvl->interact_popup_alpha}, temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC(interact_str), fonts, ek_font_pixel_med, interact_str_pos, ALIGNMENT_CENTER, (u_v4){WHITE_SPECIAL.rgb, lvl->general_ui_alpha * lvl->interact_popup_alpha}, temp_mem_arena)) {
             return false;
         }
     }
@@ -1553,15 +1553,15 @@ bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_s
         const s_rect bg_rect = {0.0f, (rc->window_size.y - bg_height) / 2.0f, rc->window_size.x, bg_height};
         const float bg_rect_outline_size = VIEW_SCALE;
 
-        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y - bg_rect_outline_size, bg_rect.width, bg_rect_outline_size}, (u_v4){WHITE.rgb, lvl->death_alpha});
-        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y + bg_rect.height, bg_rect.width, bg_rect_outline_size}, (u_v4){WHITE.rgb, lvl->death_alpha});
-        RenderRect(rc, bg_rect, (u_v4){BLACK.rgb, lvl->death_alpha * BG_ALPHA});
+        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y - bg_rect_outline_size, bg_rect.width, bg_rect_outline_size}, (u_v4){WHITE_SPECIAL.rgb, lvl->death_alpha});
+        RenderRect(rc, (s_rect){bg_rect.x, bg_rect.y + bg_rect.height, bg_rect.width, bg_rect_outline_size}, (u_v4){WHITE_SPECIAL.rgb, lvl->death_alpha});
+        RenderRect(rc, bg_rect, (u_v4){BLACK_SPECIAL.rgb, lvl->death_alpha * BG_ALPHA});
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("YOU DIED"), fonts, ek_font_pixel_large, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) - 44.0f}, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, lvl->death_alpha}, temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("YOU DIED"), fonts, ek_font_pixel_large, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) - 44.0f}, ALIGNMENT_CENTER, (u_v4){WHITE_SPECIAL.rgb, lvl->death_alpha}, temp_mem_arena)) {
             return false;
         }
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("PRESS [ENTER] TO RESTART"), fonts, ek_font_pixel_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 44.0f}, ALIGNMENT_CENTER, (u_v4){WHITE.rgb, lvl->death_alpha}, temp_mem_arena)) {
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("PRESS [ENTER] TO RESTART"), fonts, ek_font_pixel_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 44.0f}, ALIGNMENT_CENTER, (u_v4){WHITE_SPECIAL.rgb, lvl->death_alpha}, temp_mem_arena)) {
             return false;
         }
     }
