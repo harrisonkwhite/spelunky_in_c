@@ -16,6 +16,8 @@
 
 // Check tiles to the right. If the topmost tile has a 
 
+#define DEATH_FLICKER_INTERVAL 10
+
 #define POST_START_WAIT_TIME_MAX 45
 #define LEAVING_WAIT_TIME_MAX 30
 
@@ -1172,6 +1174,13 @@ e_level_update_end_result UpdateLevel(s_level* const lvl, s_game_run_state* cons
             Shake(lvl, 3.0f);
         }
 
+        if (lvl->death_flicker_time < DEATH_FLICKER_INTERVAL) {
+            lvl->death_flicker_time++;
+        } else {
+            lvl->death_flicker = !lvl->death_flicker;
+            lvl->death_flicker_time = 0;
+        }
+
         if (IsKeyPressed(&zfw_context->input_context, ek_key_code_enter)) {
             end_res = ek_level_update_end_result_restart;
         }
@@ -1561,7 +1570,9 @@ bool RenderLevelUI(const s_level* const lvl, const s_game_run_state* const run_s
             return false;
         }
 
-        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("PRESS [ENTER] TO RESTART"), fonts, ek_font_pixel_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 44.0f}, ALIGNMENT_CENTER, (u_v4){WHITE_SPECIAL.rgb, lvl->death_alpha}, temp_mem_arena)) {
+        const u_v4 col = {lvl->death_flicker ? YELLOW_BRIGHT_SPECIAL.rgb : WHITE_SPECIAL.rgb, lvl->death_alpha};
+
+        if (!RenderStr(rc, (s_char_array_view)ARRAY_FROM_STATIC("PRESS [ENTER] TO RESTART"), fonts, ek_font_pixel_small, (s_v2){rc->window_size.x / 2.0f, (rc->window_size.y / 2.0f) + 44.0f}, ALIGNMENT_CENTER, col, temp_mem_arena)) {
             return false;
         }
     }

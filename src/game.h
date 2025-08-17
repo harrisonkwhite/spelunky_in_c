@@ -372,6 +372,9 @@ typedef struct {
     float interact_popup_alpha;
 
     int gold_display_cnt;
+
+    bool death_flicker;
+    int death_flicker_time;
 } s_level;
 
 typedef struct {
