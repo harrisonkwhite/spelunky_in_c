@@ -6,7 +6,7 @@
 
 ## About
 
-This project was made in 42 hours for UQCS 2025 Hackathon. It is an attempted clone of the classic game "Spelunky" by Derek Yu but in C. I strictly prohibited myself from using AI-generated code in any way, including no auto-completions.
+This project was made in 42.5 hours for UQCS 2025 Hackathon. It is an attempted clone of the classic game "Spelunky" by Derek Yu but in C. I strictly prohibited myself from using AI-generated code in any way, including no auto-completions.
 
 Given the very strict time constraints and the fact that I had no plans to further develop this beyond the event, the code here is absolutely catastrophic spaghetti and wasn't thought through well at all. I apologise for any headaches you develop while reading it.
 
